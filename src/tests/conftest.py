@@ -1,13 +1,17 @@
 from pytest import fixture
-
 from src.db_app import DBSqlite
 from src.interface import (
-    DeviceCompanyInterface,
-    DeviceInterface,
-    DeviceTypeInterface,
-    StockDevicesInterface,
+    DeviceCompanyTable,
+    DeviceTable,
+    DeviceTypeTable,
+    InterfaceConnectDB,
+    QueryInterface,
+    StockDeviceTable,
+    company_factory,
+    device_factory,
+    device_type_factory,
+    stock_device_factory,
 )
-
 
 table_list = ["device", "device_type", "device_company", "stock_device"]
 
@@ -24,35 +28,98 @@ def db_connect():
 
 
 @fixture
+def company_connect():
+    with DBSqlite("clean_device_test.db") as conn:
+        interface = InterfaceConnectDB(
+            conn,
+            row_factory=company_factory,
+            query=QueryInterface(table=DeviceCompanyTable),
+        )
+        set_data = [
+            ("Clay Paky", "Itali", "https://www.claypaky.it/"),
+            (
+                "Light Craft",
+                "Russia",
+                "https://light-craft.ru/",
+            ),
+        ]
+        interface.set_many_data(set_data)
+
+        yield interface
+
+        conn.execute(
+            "UPDATE `sqlite_sequence` SET `seq` = 0 WHERE `name` = '%s'"
+            % "device_company"
+        )
+        conn.execute("DELETE FROM '%s'" % "device_company")
+
+
+@fixture
+def type_connect():
+    with DBSqlite("clean_device_test.db") as conn:
+        interface = InterfaceConnectDB(
+            conn,
+            row_factory=device_type_factory,
+            query=QueryInterface(table=DeviceTypeTable),
+        )
+        set_data = [
+            ("beam", "Light device not spot"),
+            ("spot", "light device not beam"),
+        ]
+        interface.set_many_data(set_data)
+
+        yield interface
+
+        conn.execute(
+            "UPDATE `sqlite_sequence` SET `seq` = 0 WHERE `name` = '%s'" % "device_type"
+        )
+        conn.execute("DELETE FROM '%s'" % "device_type")
+
+
+@fixture
 def stock_device_connect():
-    data_type_device = {
-        "type_title": "Beam",
-        "description_type": "вращающиеся головы, которые имеют узконаправленный источник света. Угол раскрытия луча у приборов данного вида колеблется от 2 до 10 градусов.",
-    }
-    data_company = {
-        "company_name": "Clay Paky",
-        "producer_country": "Itali",
-        "description_company": "https://www.claypaky.it/",
-    }
-    data_device = {"device_name": "k20", "company_id": "1", "type_device_id": "1"}
-    stock_device = {
-        "stock_device_id": "25",
-        "device_id": "1",
-        "at_clean_date": "2025-04-19",
-    }
+    type_device_data = [
+        ("beam", "Light device not spot"),
+        ("spot", "light device not beam"),
+    ]
+    company_device = [
+        ("Clay Paky", "Itali", "https://www.claypaky.it/"),
+        (
+            "Light Craft",
+            "Russia",
+            "https://light-craft.ru/",
+        ),
+    ]
+    data_device = [("k20", 1, 1), ("laser beam", 2, 1)]
+
+    stock_device = [("25", "1", "2025-04-19"), ("35", "2", "2025-04-29")]
 
     with DBSqlite("clean_device_test.db") as conn:
-        company_interface = DeviceCompanyInterface(conn)
-        company_interface.insert(data_company)
+        company_interface = InterfaceConnectDB(
+            conn,
+            row_factory=company_factory,
+            query=QueryInterface(table=DeviceCompanyTable),
+        )
+        company_interface.set_many_data(company_device)
 
-        type_interface = DeviceTypeInterface(conn)
-        type_interface.insert(data_type_device)
+        type_interface = InterfaceConnectDB(
+            conn,
+            row_factory=device_type_factory,
+            query=QueryInterface(table=DeviceTypeTable),
+        )
+        type_interface.set_many_data(type_device_data)
 
-        device_input = DeviceInterface(conn)
-        device_input.insert(data_device)
+        device_input = InterfaceConnectDB(
+            conn, row_factory=device_factory, query=QueryInterface(table=DeviceTable)
+        )
+        device_input.set_many_data(data_device)
 
-        stock_devices = StockDevicesInterface(conn)
-        stock_devices.insert(stock_device)
+        stock_devices = InterfaceConnectDB(
+            conn,
+            row_factory=stock_device_factory,
+            query=QueryInterface(table=StockDeviceTable),
+        )
+        stock_devices.set_many_data(stock_device)
 
         yield stock_devices
 
@@ -65,30 +132,43 @@ def stock_device_connect():
 
 @fixture
 def device_connect():
-    data_type_device = {
-        "type_title": "Beam",
-        "description_type": "вращающиеся головы, которые имеют узконаправленный источник света. Угол раскрытия луча у приборов данного вида колеблется от 2 до 10 градусов.",
-    }
-    data_company = {
-        "company_name": "Clay Paky",
-        "producer_country": "Itali",
-        "description_company": "https://www.claypaky.it/",
-    }
-    data_device = {"device_name": "k20", "company_id": 1, "type_device_id": 1}
+    type_device_data = [
+        ("beam", "Light device not spot"),
+        ("spot", "light device not beam"),
+    ]
+    company_device = [
+        ("Clay Paky", "Itali", "https://www.claypaky.it/"),
+        (
+            "Light Craft",
+            "Russia",
+            "https://light-craft.ru/",
+        ),
+    ]
+    data_device = [("k20", 1, 1), ("laser beam", 2, 1)]
 
     with DBSqlite("clean_device_test.db") as conn:
-        company_interface = DeviceCompanyInterface(conn)
-        company_interface.insert(data_company)
+        company_interface = InterfaceConnectDB(
+            conn,
+            row_factory=company_factory,
+            query=QueryInterface(table=DeviceCompanyTable),
+        )
+        company_interface.set_many_data(company_device)
 
-        type_interface = DeviceTypeInterface(conn)
-        type_interface.insert(data_type_device)
+        type_interface = InterfaceConnectDB(
+            conn,
+            row_factory=device_type_factory,
+            query=QueryInterface(table=DeviceTypeTable),
+        )
+        type_interface.set_many_data(type_device_data)
 
-        device_input = DeviceInterface(conn)
-        device_input.insert(data_device)
+        device_input = InterfaceConnectDB(
+            conn, row_factory=device_factory, query=QueryInterface(table=DeviceTable)
+        )
+        device_input.set_many_data(data_device)
 
         yield device_input
 
-        for table in table_list[:-2]:
+        for table in table_list:
             conn.execute(
                 "UPDATE `sqlite_sequence` SET `seq` = 0 WHERE `name` = '%s'" % table
             )
@@ -96,40 +176,6 @@ def device_connect():
 
 
 @fixture
-def company_connect():
-    data_company = {
-        "company_name": "Clay Paky",
-        "producer_country": "Itali",
-        "description_company": "https://www.claypaky.it/",
-    }
-
-    with DBSqlite("clean_device_test.db") as conn:
-        company_interface = DeviceCompanyInterface(conn)
-        company_interface.insert(data_company)
-
-        yield company_interface
-
-        conn.execute(
-            "UPDATE `sqlite_sequence` SET `seq` = 0 WHERE `name` = '%s'"
-            % "device_company"
-        )
-        conn.execute("DELETE FROM '%s'" % "device_company")
-
-
-@fixture
-def type_connect():
-    data_type_device = {
-        "type_title": "Beam",
-        "description_type": "вращающиеся головы, которые имеют узконаправленный источник света. Угол раскрытия луча у приборов данного вида колеблется от 2 до 10 градусов.",
-    }
-
-    with DBSqlite("clean_device_test.db") as conn:
-        type_interface = DeviceTypeInterface(conn)
-        type_interface.insert(data_type_device)
-
-        yield type_interface
-
-        conn.execute(
-            "UPDATE `sqlite_sequence` SET `seq` = 0 WHERE `name` = '%s'" % "device_type"
-        )
-        conn.execute("DELETE FROM '%s'" % "device_type")
+def query_interface():
+    tdqi = QueryInterface(DeviceTypeTable)
+    yield tdqi

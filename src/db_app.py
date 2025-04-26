@@ -20,7 +20,7 @@ CREATE_TABLE_DEVICE_COMPANY = """CREATE TABLE IF NOT EXISTS device_company
 CREATE_TABLE_DEVICE_TYPE = """CREATE TABLE IF NOT EXISTS device_type
     (type_device_id integer primary key AUTOINCREMENT,
     type_title text not null unique,
-    description_type text)
+    type_description text)
 """
 
 CREATE_TABLE_DEVICE = """CREATE TABLE IF NOT EXISTS device

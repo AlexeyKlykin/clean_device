@@ -1,290 +1,273 @@
 from src.interface import (
-    DeviceCompany,
-    DeviceOutput,
-    DeviceType,
-    StockDevicesOutput,
-    device_output_factory,
-    stock_device_output_factory,
+    DeviceCompanyTable,
+    DeviceTable,
+    DeviceTypeTable,
+    RowValue,
+    StockDeviceData,
+    StockDeviceTable,
+    TableRow,
+    repr_stock_device_factory,
 )
 
 
-class TestDeviceTypeWorkAPI:
-    """Тест работы api манипуляции с типами приборов"""
+class TestConnectionInterfaceStockDevice:
+    """Тест интерфейса обработки данных о приборе на складе"""
 
-    def test_get_data_about_device_type_by_id(self, type_connect):
-        """тест: получение данных о типе устройства по id"""
+    def test_get_all_data_stock_device(self, stock_device_connect):
+        """тест: интерфейс для получения данных всех приборов на складе"""
 
-        res = type_connect.get(1)
+        res = stock_device_connect.get_all_data()
+        assert list(res) == [
+            [
+                StockDeviceTable(
+                    stock_device_id=25, device_id=1, at_clean_date="2025-04-19"
+                ),
+                StockDeviceTable(
+                    stock_device_id=35, device_id=2, at_clean_date="2025-04-29"
+                ),
+            ]
+        ]
 
-        assert res == DeviceType(
-            type_title="Beam",
-            description_type="вращающиеся головы, которые имеют узконаправленный источник света. Угол раскрытия луча у приборов данного вида колеблется от 2 до 10 градусов.",
+    def test_get_once_data_stock_device(self, stock_device_connect):
+        """тест: интерфейс для получения данных одного прибора на складе"""
+
+        row = "stock_device_id"
+        val = "25"
+        res = stock_device_connect.get_once_data(row, val)
+
+        assert res == StockDeviceTable(
+            stock_device_id=25, device_id=1, at_clean_date="2025-04-19"
         )
 
-    def test_check_type_by_id(self, type_connect):
-        """тест: проверка тип по id"""
+    def test_set_data_stock_device(self, stock_device_connect):
+        """тест: интерфейс для записи данных в бд"""
 
-        res = type_connect.check_by_id(1)
+        set_data = ("45", "1", "2025-05-19")
+        stock_device_connect.set_data(set_data)
 
-        assert res
+        row = "stock_device_id"
+        val = "45"
 
-    def test_insert_device_type_into_table(self, type_connect):
-        """тест: добавление типа приборов в таблицу"""
+        res = stock_device_connect.get_once_data(row, val)
 
-        cursor = type_connect.conn.cursor()
-        cursor.execute("SELECT type_title, description_type FROM device_type")
-        res = cursor.fetchone()
-
-        assert res == DeviceType(
-            type_title="Beam",
-            description_type="вращающиеся головы, которые имеют узконаправленный источник света. Угол раскрытия луча у приборов данного вида колеблется от 2 до 10 градусов.",
+        assert res == StockDeviceTable(
+            stock_device_id=45, device_id=1, at_clean_date="2025-05-19"
         )
 
-    def test_uniq_type_device_title(self, type_connect):
-        """тест: отказа в добавлении уникальных имен типов приборов"""
+    def test_update_data_type_device(self, stock_device_connect):
+        """тест: интерфейс для обновления данных пробора на складе"""
 
-        data_type_device = {
-            "type_title": "Beam",
-            "description_type": "вращающиеся головы, которые имеют узконаправленный источник света. Угол раскрытия луча у приборов данного вида колеблется от 2 до 10 градусов.",
-        }
+        set_data = (TableRow("stock_device_id"), RowValue("55"))
+        where_data = (TableRow("stock_device_id"), RowValue("25"))
 
-        res = type_connect.insert(data_type_device)
+        res = stock_device_connect.get_once_data(where_data[0], where_data[1])
+        res_title = res.stock_device_id
 
-        assert not res
+        stock_device_connect.update_data(set_data, where_data)
 
-    def test_check_type_title_is_present_in_the_table(self, type_connect):
-        """тест: проверка наличия названия компании в таблице"""
+        res_two = stock_device_connect.get_once_data(set_data[0], set_data[1])
+        res_two_title = res_two.stock_device_id
 
-        valid_type_title = "Beam"
-        invalid_type_title = "Veam"
+        assert res_title != res_two_title
 
-        res = type_connect.check_by_title(valid_type_title)
+    def test_get_repr_stock_device(self, stock_device_connect):
+        """тест: интерфейс для показа полных данных прибора на складе по id"""
 
-        assert res
+        device_id = 25
+        stock_device_connect.conn.row_factory = repr_stock_device_factory
+        res = stock_device_connect.get_repr_stock_data(device_id)
 
-        res = type_connect.check_by_title(invalid_type_title)
-
-        assert not res
-
-    def test_deleting_record_in_the_type_device_table(self, type_connect):
-        """тест: удаления записи из таблици компании"""
-
-        type_title = "Beam"
-
-        type_connect.deleting_record_by_title(type_title)
-
-        cursor = type_connect.conn.cursor()
-        cursor.execute(
-            "SELECT type_title, description_type FROM device_type WHERE type_title = '%s'"
-            % type_title
+        assert res == StockDeviceData(
+            stock_device_id=25,
+            device_name="k20",
+            company_name="Clay Paky",
+            type_title="beam",
+            at_clean_date="2025-04-19",
         )
-        result = cursor.fetchone()
-        assert result is None
 
 
-class TestDeviceCompanyWorkApi:
-    """Тест работы api манипуляции с бд"""
+class TestConnectionInterfaceDevice:
+    """Тест интерфейса обработки данных о приборе"""
 
-    def test_get_data_about_device_company_by_id(self, company_connect):
-        """тест: получение данных о компании по Id"""
+    def test_get_all_data_device(self, device_connect):
+        """тест: интерфейс для получения данных всех приборов"""
 
-        res = company_connect.get(1)
+        res = device_connect.get_all_data()
+        assert list(res) == [
+            [
+                DeviceTable(device_name="k20", company_id=1, type_device_id=1),
+                DeviceTable(device_name="laser beam", company_id=2, type_device_id=1),
+            ]
+        ]
 
-        assert res == DeviceCompany(
+    def test_get_once_data_device(self, device_connect):
+        """тест: интерфейс для получения данных одного прибора"""
+
+        row = "device_id"
+        val = "1"
+        res = device_connect.get_once_data(row, val)
+
+        assert res == DeviceTable(device_name="k20", company_id=1, type_device_id=1)
+
+    def test_set_data_device(self, device_connect):
+        """тест: интерфейс для записи данных в бд"""
+
+        set_data = ("prima mythos", 1, 1)
+        device_connect.set_data(set_data)
+
+        row = "device_id"
+        val = "3"
+
+        res = device_connect.get_once_data(row, val)
+
+        assert res == DeviceTable(
+            device_name="prima mythos", company_id=1, type_device_id=1
+        )
+
+    def test_update_data_type_device(self, device_connect):
+        """тест: интерфейс для обновления данных типа пробора"""
+
+        set_data = (TableRow("device_name"), RowValue("k30"))
+        where_data = (TableRow("device_id"), RowValue("1"))
+
+        res = device_connect.get_once_data(where_data[0], where_data[1])
+        res_title = res.device_name
+
+        device_connect.update_data(set_data, where_data)
+
+        res_two = device_connect.get_once_data(where_data[0], where_data[1])
+        res_two_title = res_two.device_name
+
+        assert res_title != res_two_title
+
+
+class TestConnectionInterfaceDeviceCompany:
+    """Тест интерфейса обработки данных компании"""
+
+    def test_get_all_data_device_company(self, company_connect):
+        """тест: интерфейс для получения данных всех типов приборов"""
+
+        res = company_connect.get_all_data()
+        assert list(res) == [
+            [
+                DeviceCompanyTable(
+                    company_name="Clay Paky",
+                    producer_country="Itali",
+                    description_company="https://www.claypaky.it/",
+                ),
+                DeviceCompanyTable(
+                    company_name="Light Craft",
+                    producer_country="Russia",
+                    description_company="https://light-craft.ru/",
+                ),
+            ]
+        ]
+
+    def test_get_once_data_device_company(self, company_connect):
+        """тест: интерфейс для получения данных одного прибора"""
+
+        row = "company_id"
+        val = "1"
+        res = company_connect.get_once_data(row, val)
+
+        assert res == DeviceCompanyTable(
             company_name="Clay Paky",
             producer_country="Itali",
             description_company="https://www.claypaky.it/",
         )
 
-    def test_check_device_company_by_id(self, company_connect):
-        """тест: проверка на то что существует компания по id"""
+    def test_set_data_device_company(self, company_connect):
+        """тест: интерфейс для записи данных в бд"""
+        set_data = ("Antari", "Taiwan", "https://antari.com/")
+        company_connect.set_data(set_data)
 
-        res = company_connect.check_by_id(1)
+        row = "company_id"
+        val = "3"
 
-        assert res
+        res = company_connect.get_once_data(row, val)
 
-    def test_insert_company_into_device_company_interface_(self, company_connect):
-        """тест: работы интерфейса добавления компании производителя приборов"""
-
-        cursor = company_connect.conn.cursor()
-        cursor.execute(
-            "SELECT company_name, producer_country, description_company FROM device_company"
-        )
-        res = cursor.fetchone()
-
-        assert res == DeviceCompany(
-            company_name="Clay Paky",
-            producer_country="Itali",
-            description_company="https://www.claypaky.it/",
+        assert res == DeviceCompanyTable(
+            company_name="Antari",
+            producer_country="Taiwan",
+            description_company="https://antari.com/",
         )
 
-    def test_uniq_company_data(self, company_connect):
-        """тест: отказ в добавлении уже существующего названия компании"""
+    def test_update_data_type_device(self, company_connect):
+        """тест: интерфейс для обновления данных типа пробора"""
 
-        data_company = {
-            "company_name": "Clay Paky",
-            "producer_country": "Itali",
-            "description_company": "https://www.claypaky.it/",
-        }
+        set_data = (TableRow("company_name"), RowValue("Clay Puky"))
+        where_data = (TableRow("company_id"), RowValue("1"))
 
-        res = company_connect.insert(data_company)
+        res = company_connect.get_once_data(where_data[0], where_data[1])
+        res_title = res.company_name
 
-        assert not res
+        company_connect.update_data(set_data, where_data)
 
-    def test_check_company_name_is_present_in_the_table(self, company_connect):
-        """тест: проверка наличия названия компании в таблице"""
+        res_two = company_connect.get_once_data(where_data[0], where_data[1])
+        res_two_title = res_two.company_name
 
-        valid_name_company = "Clay Paky"
-        invalid_name_company = "Lay Paku"
-
-        res = company_connect.check_by_title(valid_name_company)
-
-        assert res
-
-        res = company_connect.check_by_title(invalid_name_company)
-
-        assert not res
-
-    def test_deleting_record_in_the_company_table(self, company_connect):
-        """тест: удаления записи из таблици компании"""
-
-        name_company = "Clay Paky"
-
-        company_connect.deleting_record_by_title(name_company)
-
-        cursor = company_connect.conn.cursor()
-        cursor.execute(
-            "SELECT company_name, producer_country, description_company FROM device_company WHERE company_name = '%s'"
-            % name_company
-        )
-        result = cursor.fetchone()
-        assert result is None
+        assert res_title != res_two_title
 
 
-class TestDeviceWorkAPI:
-    """Тест работы api манипуляции с таблицей приборов"""
+class TestConnectionInterfaceTypeDevice:
+    """Тест интерфейса обработки данных типов приборов"""
 
-    def test_get_data_about_device_by_id(self, device_connect):
-        """тест: получение данных об устройстве по id"""
+    def test_get_all_data_type_device(self, type_connect):
+        """тест: интерфейс для получения данных всех типов приборов"""
 
-        res = device_connect.get(1)
+        res = type_connect.get_all_data()
+        assert list(res) == [
+            [
+                DeviceTypeTable(
+                    type_title="beam",
+                    type_description="Light device not spot",
+                ),
+                DeviceTypeTable(
+                    type_title="spot",
+                    type_description="light device not beam",
+                ),
+            ]
+        ]
 
-        assert res == DeviceOutput(
-            device_name="k20", company_name="Clay Paky", type_title="Beam"
+    def test_get_once_data_type_device(self, type_connect):
+        """тест: интерфейс для получения данных одного прибора"""
+
+        row = "type_device_id"
+        val = "1"
+        res = type_connect.get_once_data(row, val)
+
+        assert res == DeviceTypeTable(
+            type_title="beam",
+            type_description="Light device not spot",
         )
 
-    def test_get_by_id_device_by_device_name(self, device_connect):
-        """тест: получение Id прибора по имени"""
+    def test_set_data_type_device(self, type_connect):
+        """тест: интерфейс для записи данных в бд"""
+        set_data = ("beamsi", "Light device not spot")
+        type_connect.set_data(set_data)
 
-        res = device_connect.get_id_by_name("k20")
-        assert res == 1
+        row = "type_device_id"
+        val = "3"
 
-    def test_insert_device_table(self, device_connect):
-        """тест: добавление приборов в таблицу"""
+        res = type_connect.get_once_data(row, val)
 
-        query_select = """SELECT d.device_name, dc.company_name, dt.type_title from device d
-left join device_company dc on dc.company_id = d.company_id
-left join device_type dt on dt.type_device_id = d.type_device_id"""
-
-        device_connect.conn.row_factory = device_output_factory
-        cursor = device_connect.conn.cursor()
-        cursor.execute(query_select)
-        res = cursor.fetchone()
-
-        assert res == DeviceOutput(
-            device_name="k20", company_name="Clay Paky", type_title="Beam"
+        assert res == DeviceTypeTable(
+            type_title="beamsi",
+            type_description="Light device not spot",
         )
 
-    def test_uniq_device_title(self, device_connect):
-        """тест: отказа в добавлении уникальных имен приборов"""
+    def test_update_data_type_device(self, type_connect):
+        """тест: интерфейс для обновления данных типа пробора"""
 
-        data_device = {"device_name": "k20", "company_id": 1, "type_device_id": 1}
+        set_data = (TableRow("type_title"), RowValue("Boom"))
+        where_data = (TableRow("type_device_id"), RowValue("1"))
 
-        device_connect.insert(data_device)
-        res = device_connect.insert(data_device)
+        res = type_connect.get_once_data(where_data[0], where_data[1])
+        res_title = res.type_title
 
-        assert not res
+        type_connect.update_data(set_data, where_data)
 
-    def test_check_device_title_is_present_in_the_table(self, device_connect):
-        """тест: проверка наличия названия прибора в таблице"""
+        res_two = type_connect.get_once_data(where_data[0], where_data[1])
+        res_two_title = res_two.type_title
 
-        valid_device_title = "k20"
-        invalid_device_title = "v20"
-
-        res = device_connect.check_by_title(valid_device_title)
-
-        assert res
-
-        res = device_connect.check_by_title(invalid_device_title)
-
-        assert not res
-
-    def test_deleting_record_in_the_device_table(self, device_connect):
-        """тест: удаления записи из таблици компании"""
-
-        device_name = "k20"
-
-        device_connect.deleting_record_by_title(device_name)
-
-        cursor = device_connect.conn.cursor()
-        cursor.execute(
-            "SELECT device_name, company_id, type_device_id FROM device WHERE device_name = '%s'"
-            % device_name
-        )
-        res = cursor.fetchone()
-
-        assert not res
-
-
-class TestStockDeviceWorkAPI:
-    """Тест работы api таблицы приборов на складе"""
-
-    def test_get_data_about_stock_device_by_id(self, stock_device_connect):
-        """тест: получение данных о приборах на складах по id"""
-
-        res = stock_device_connect.get(25)
-
-        assert res == StockDevicesOutput(
-            stock_device_id=25,
-            device_name="k20",
-            company_name="Clay Paky",
-            type_title="Beam",
-            at_clean_date="2025-04-19",
-        )
-
-    def test_insert_stock_device_table(self, stock_device_connect):
-        """тест: добавление приборов в таблицу"""
-
-        query_select = """select sd.stock_device_id, d.device_name, dc.company_name, dt.type_title, sd.at_clean_date
-from stock_device sd
-left join device d on d.device_id = sd.device_id
-left join device_company dc on dc.company_id = d.company_id
-left join device_type dt on dt.type_device_id = d.type_device_id;"""
-
-        stock_device_connect.conn.row_factory = stock_device_output_factory
-        cursor = stock_device_connect.conn.cursor()
-        cursor.execute(query_select)
-        res = cursor.fetchone()
-
-        assert res == StockDevicesOutput(
-            device_name="k20",
-            company_name="Clay Paky",
-            type_title="Beam",
-            stock_device_id=25,
-            at_clean_date="2025-04-19",
-        )
-
-    def test_deleting_record_in_the_device_table(self, stock_device_connect):
-        """тест: удаления записи из таблици компании"""
-
-        title = "25"
-
-        stock_device_connect.deleting_record_by_title(title)
-
-        cursor = stock_device_connect.conn.cursor()
-        cursor.execute(
-            "SELECT stock_device_id from stock_device where stock_device_id = 25"
-        )
-        res = cursor.fetchone()
-
-        assert not res
+        assert res_title != res_two_title

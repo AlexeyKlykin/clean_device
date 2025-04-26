@@ -1,16 +1,4 @@
 from src.db_app import DBSqlite
-from src.interface import (
-    DeviceCompany,
-    DeviceOutput,
-    DeviceType,
-    DeviceCompanyInterface,
-    DeviceTypeInterface,
-    DeviceInterface,
-    StockDevicesOutput,
-    device_output_factory,
-    StockDevicesInterface,
-    stock_device_output_factory,
-)
 
 
 def test_work_connect_db_sqlite():
