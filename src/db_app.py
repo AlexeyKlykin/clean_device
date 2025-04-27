@@ -1,5 +1,8 @@
 import logging
+import json
+import os
 import sqlite3
+from typing import IO, Dict, Literal
 
 
 logging.basicConfig(
@@ -38,6 +41,42 @@ CREATE_TABLE_STOCK_DEVICE = """CREATE TABLE IF NOT EXISTS stock_device
     device_id integer,
     foreign key(device_id) references device(device_id))
 """
+type Mode = Literal["r", "rb", "w", "wb"]
+
+
+class TempJS:
+    def __init__(self, fp: str, mode: Mode):
+        self.fp = fp
+        self.mode: Mode = mode
+
+    def __enter__(self) -> IO:
+        self.file = open(self.fp, self.mode)
+        return self.file
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        try:
+            if self.file:
+                self.file.close()
+
+        except Exception:
+            raise Exception(exc_type, exc_val, exc_tb)
+
+
+class ApiTempJS:
+    def __init__(self, fp: str) -> None:
+        self.fp = fp
+
+    def write(self, data: Dict[str, str]):
+        with TempJS(self.fp, "w") as js:
+            json.dump(obj=data, fp=js)
+
+    def read(self) -> Dict[str, str]:
+        with TempJS(self.fp, "w") as js:
+            data = json.load(js)
+            return data
+
+    def clean(self):
+        os.remove(self.fp)
 
 
 class DBSqlite:

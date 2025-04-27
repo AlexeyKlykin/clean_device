@@ -12,8 +12,18 @@ from src.interface import (
     device_type_factory,
     stock_device_factory,
 )
+from src.run_bot import DBotAPI
+from src.secret import secrets
 
 table_list = ["device", "device_type", "device_company", "stock_device"]
+
+
+@fixture
+def bot_api():
+    db_name = secrets["DB_TEST"]
+    bot = DBotAPI()
+    bot.db_name = db_name
+    yield bot
 
 
 @fixture
