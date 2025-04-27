@@ -67,16 +67,26 @@ class ApiTempJS:
         self.fp = fp
 
     def write(self, data: Dict[str, str]):
-        with TempJS(self.fp, "w") as js:
-            json.dump(obj=data, fp=js)
+        try:
+            with TempJS(self.fp, "w") as js:
+                json.dump(obj=data, fp=js)
+        except IOError as err:
+            raise err
 
     def read(self) -> Dict[str, str]:
-        with TempJS(self.fp, "w") as js:
-            data = json.load(js)
-            return data
+        try:
+            with TempJS(self.fp, "r") as js:
+                data = json.load(js)
+                return data
+
+        except IOError as err:
+            raise err
 
     def clean(self):
-        os.remove(self.fp)
+        if os.path.exists(self.fp):
+            os.remove(self.fp)
+        else:
+            logger.warning(f"{self.fp} неверный путь к файлу")
 
 
 class DBSqlite:

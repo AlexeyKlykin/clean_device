@@ -24,6 +24,7 @@ from src.interface import (
     DeviceTypeTable,
     DeviceCompanyTable,
     RowValue,
+    StockDeviceData,
     StockDeviceTable,
     TableRow,
     company_factory,
@@ -32,6 +33,7 @@ from src.interface import (
     output_company_factory,
     output_device_factory,
     output_device_type_factory,
+    repr_stock_device_factory,
     stock_device_factory,
 )
 from src.secret import secrets
@@ -87,6 +89,31 @@ class DeviceTypeCallback(CallbackData, prefix="add_type"):
 class DBotAPI:
     def __init__(self) -> None:
         self.db_name = secrets["DB_NAME"]
+
+    def get_stock_device_id(self, stock_device_id: str | None) -> dict:
+        if isinstance(self.db_name, str):
+            with DBSqlite(self.db_name) as conn:
+                interface = InterfaceConnectDB(
+                    conn,
+                    row_factory=repr_stock_device_factory,
+                    query=QueryInterface(table=StockDeviceData),
+                )
+
+                if stock_device_id:
+                    try:
+                        stock_device = interface.get_repr_stock_data(
+                            int(stock_device_id)
+                        )
+                        return stock_device.model_dump()
+
+                    except ValueError:
+                        raise ValueError((f"{stock_device_id} должен быть числом"))
+
+                else:
+                    raise ValueError
+
+        else:
+            raise TypeError("Не передано название базы данных")
 
     def check_type_id(self, type_title: str | None) -> bool:
         if isinstance(self.db_name, str):
@@ -448,23 +475,10 @@ class DBotAPI:
 
     def gen_inline_kb(self, type_request_list: str) -> InlineKeyboardMarkup:
         lst_btn = []
-
+        lst_btn.append([InlineKeyboardButton(text="/cancel", callback_data="cancel")])
         try:
             match type_request_list:
                 case "stock_device":
-                    device_list = self.get_all_stock_device_id()
-                    lst_btn = [
-                        [
-                            InlineKeyboardButton(
-                                text=str(item),
-                                callback_data=StockDeviceCallback(
-                                    reaction_text=str(item),
-                                    stock_device_id=int(item),
-                                ).pack(),
-                            )
-                            for item in device_list
-                        ],
-                    ]
                     lst_btn.append(
                         [
                             InlineKeyboardButton(
@@ -474,19 +488,6 @@ class DBotAPI:
                         ]
                     )
                 case "device":
-                    device_list = self.get_all_devices()
-                    lst_btn = [
-                        [
-                            InlineKeyboardButton(
-                                text=str(item),
-                                callback_data=DeviceCallback(
-                                    reaction_text=str(item),
-                                    device_name=str(item),
-                                ).pack(),
-                            )
-                            for item in device_list
-                        ]
-                    ]
                     lst_btn.append(
                         [
                             InlineKeyboardButton(
@@ -497,19 +498,6 @@ class DBotAPI:
                     )
 
                 case "company":
-                    device_list = self.get_all_company()
-                    lst_btn = [
-                        [
-                            InlineKeyboardButton(
-                                text=item,
-                                callback_data=CompanyCallback(
-                                    reaction_text=item,
-                                    company_name=item,
-                                ).pack(),
-                            )
-                            for item in device_list
-                        ]
-                    ]
                     lst_btn.append(
                         [
                             InlineKeyboardButton(
@@ -520,19 +508,6 @@ class DBotAPI:
                     )
 
                 case "device_type":
-                    device_list = self.get_all_type()
-                    lst_btn = [
-                        [
-                            InlineKeyboardButton(
-                                text=item,
-                                callback_data=DeviceTypeCallback(
-                                    reaction_text=(item),
-                                    device_type=str(item),
-                                ).pack(),
-                            )
-                            for item in device_list
-                        ]
-                    ]
                     lst_btn.append(
                         [
                             InlineKeyboardButton(
