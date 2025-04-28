@@ -74,8 +74,9 @@ class TestConnectionInterfaceStockDevice:
         """тест: интерфейс для показа полных данных прибора на складе по id"""
 
         device_id = 25
+        device_name = "k20"
         stock_device_connect.conn.row_factory = repr_stock_device_factory
-        res = stock_device_connect.get_repr_stock_data(device_id)
+        res = stock_device_connect.get_repr_stock_data(device_id, device_name)
 
         assert res == StockDeviceData(
             stock_device_id=25,

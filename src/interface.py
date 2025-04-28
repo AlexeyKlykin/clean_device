@@ -223,7 +223,15 @@ class AbstractInterfaceQuery(ABC):
     ) -> str: ...
 
     @abstractmethod
-    def query_get_stock_device(self, stock_device_id: int) -> str: ...
+    def query_get_stock_device(self, stock_device_id: int, device_name: str) -> str: ...
+
+    @abstractmethod
+    def query_update_data_by_two_arg(
+        self,
+        raw_set_data: Dict[TableRow, RowValue],
+        raw_where_data_one: Dict[TableRow, RowValue],
+        raw_where_data_two: Dict[TableRow, RowValue],
+    ) -> str: ...
 
 
 class QueryInterface(AbstractInterfaceQuery):
@@ -242,15 +250,17 @@ class QueryInterface(AbstractInterfaceQuery):
     def count_rows(self) -> int:
         return len(self.table.table_rows())
 
-    def query_get_stock_device(self, stock_device_id: int) -> str:
+    def query_get_stock_device(self, stock_device_id: int, device_name: str) -> str:
         query = """SELECT sd.stock_device_id, d.device_name, dc.company_name, dt.type_title, sd.at_clean_date
 FROM stock_device sd
 LEFT JOIN device d ON d.device_id = sd.device_id
 LEFT JOIN device_company dc ON dc.company_id = d.company_id
 LEFT JOIN device_type dt ON dt.type_device_id = d.type_device_id
-WHERE sd.stock_device_id = '{stock_device_id}'
+WHERE sd.stock_device_id = '{stock_device_id}' and d.device_name = '{device_name}'
 """
-        return query.format(stock_device_id=str(stock_device_id))
+        return query.format(
+            stock_device_id=str(stock_device_id), device_name=device_name
+        )
 
     def query_get_all(self) -> str:
         query = "SELECT {rows} FROM {table_name}"
@@ -274,6 +284,21 @@ WHERE sd.stock_device_id = '{stock_device_id}'
             table_name=self.table_name,
             set_data=self.transform_data(raw_set_data),
             where_data=self.transform_data(raw_where_data),
+        )
+
+    def query_update_data_by_two_arg(
+        self,
+        raw_set_data: Dict[TableRow, RowValue],
+        raw_where_data_one: Dict[TableRow, RowValue],
+        raw_where_data_two: Dict[TableRow, RowValue],
+    ) -> str:
+        query = "UPDATE {table_name} SET {set_data} WHERE {one_data} and {two_data}"
+
+        return query.format(
+            table_name=self.table_name,
+            set_data=self.transform_data(raw_set_data),
+            one_data=self.transform_data(raw_where_data_one),
+            two_data=self.transform_data(raw_where_data_two),
         )
 
     def query_get_data_by_value(
@@ -312,11 +337,16 @@ class AbstractInterfaceConnectDB(ABC):
 
     @abstractmethod
     def update_data(
-        self, set_data: Tuple[TableRow, RowValue], where_data: Tuple[TableRow, RowValue]
+        self,
+        set_data: Tuple[TableRow, RowValue],
+        one_data: Tuple[TableRow, RowValue],
+        two_data: Tuple[TableRow, RowValue] | None = None,
     ): ...
 
     @abstractmethod
-    def get_repr_stock_data(self, stock_device_id: int) -> StockDeviceData: ...
+    def get_repr_stock_data(
+        self, stock_device_id: int, stock_device_name: str
+    ) -> StockDeviceData: ...
 
 
 class InterfaceConnectDB(AbstractInterfaceConnectDB):
@@ -330,11 +360,15 @@ class InterfaceConnectDB(AbstractInterfaceConnectDB):
         self.conn.row_factory = row_factory
         self.query = query
 
-    def get_repr_stock_data(self, stock_device_id: int) -> StockDeviceData:
+    def get_repr_stock_data(
+        self, stock_device_id: int, stock_device_name: str
+    ) -> StockDeviceData:
         try:
             cursor = self.conn.cursor()
             cursor.execute(
-                self.query.query_get_stock_device(stock_device_id=stock_device_id)
+                self.query.query_get_stock_device(
+                    stock_device_id=stock_device_id, device_name=stock_device_name
+                )
             )
             res = cursor.fetchone()
             cursor.close()
@@ -394,18 +428,40 @@ class InterfaceConnectDB(AbstractInterfaceConnectDB):
             raise err
 
     def update_data(
-        self, set_data: Tuple[TableRow, RowValue], where_data: Tuple[TableRow, RowValue]
+        self,
+        set_data: Tuple[TableRow, RowValue],
+        one_data: Tuple[TableRow, RowValue],
+        two_data: Tuple[TableRow, RowValue] | None = None,
     ):
         try:
             cursor = self.conn.cursor()
-            cursor.execute(
-                self.query.query_update(
-                    raw_set_data=self.query.gen_data(row=set_data[0], val=set_data[1]),
-                    raw_where_data=self.query.gen_data(
-                        row=where_data[0], val=where_data[1]
-                    ),
+
+            if two_data:
+                cursor.execute(
+                    self.query.query_update_data_by_two_arg(
+                        raw_set_data=self.query.gen_data(
+                            row=set_data[0], val=set_data[1]
+                        ),
+                        raw_where_data_one=self.query.gen_data(
+                            row=one_data[0], val=one_data[1]
+                        ),
+                        raw_where_data_two=self.query.gen_data(
+                            row=two_data[0], val=two_data[1]
+                        ),
+                    )
                 )
-            )
+
+            else:
+                cursor.execute(
+                    self.query.query_update(
+                        raw_set_data=self.query.gen_data(
+                            row=set_data[0], val=set_data[1]
+                        ),
+                        raw_where_data=self.query.gen_data(
+                            row=one_data[0], val=one_data[1]
+                        ),
+                    )
+                )
             cursor.close()
 
         except Exception as err:

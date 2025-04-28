@@ -1,0 +1,7 @@
+[Unit]
+Description=Clean bot service
+[Service]
+ExecStart=/home/neon/clean_bot/clean_device/.venv/bin/python /home/neon/clean_bot/clean_device/main.py
+# "Type=forking" or "Type=oneshot" may also be needed
+[Install]
+WantedBy=multi-user.target

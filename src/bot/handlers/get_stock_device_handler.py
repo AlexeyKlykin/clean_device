@@ -23,6 +23,7 @@ bot_api_db = DBotAPI()
 
 class GetStockDevice(StatesGroup):
     stock_device_id = State()
+    stock_device_name = State()
 
 
 @get_stock_device_router.message(F.text == "/get_stock_device")
@@ -32,10 +33,19 @@ async def send_stock_device_id(message: Message, state: FSMContext):
 
 
 @get_stock_device_router.message(GetStockDevice.stock_device_id)
-async def get_stock_device_id(message: Message, state: FSMContext):
+async def send_stock_device_name(message: Message, state: FSMContext):
     await state.update_data(stock_device_id=message.text)
+    await message.answer(text="Введите название устройства")
+    await state.set_state(GetStockDevice.stock_device_name)
+
+
+@get_stock_device_router.message(GetStockDevice.stock_device_name)
+async def get_stock_device(message: Message, state: FSMContext):
+    await state.update_data(stock_device_name=message.text)
     device_data = await state.get_data()
-    stock_device = bot_api_db.get_stock_device_id(device_data["stock_device_id"])
+    stock_device = bot_api_db.get_stock_device_id(
+        device_data["stock_device_id"], device_data["stock_device_name"]
+    )
     await message.answer(
         text=f"""Id прибора: {stock_device["stock_device_id"]}
 Название прибора: {stock_device["device_name"]}

@@ -22,8 +22,9 @@ table_list = ["device", "device_type", "device_company", "stock_device"]
 def bot_api():
     db_name = secrets["DB_TEST"]
     bot = DBotAPI()
-    bot.db_name = db_name
-    yield bot
+    if db_name:
+        bot.db_name = db_name
+        yield bot
 
 
 @fixture

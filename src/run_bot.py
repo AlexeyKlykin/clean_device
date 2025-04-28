@@ -2,16 +2,17 @@
 Модуль для инициализации бота
 """
 
-from datetime import datetime
 import logging
+import os
 import sqlite3
-from typing import Dict, Generator, List, Tuple
+from typing import Dict, List
 from aiogram import Bot, Dispatcher
 from aiogram.client.default import DefaultBotProperties
 from aiogram.fsm.storage.memory import MemoryStorage
 from aiogram.enums import ParseMode
 from aiogram.filters.callback_data import CallbackData
-from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup
+from aiogram.types import InlineKeyboardMarkup
+from aiogram.utils.keyboard import InlineKeyboardBuilder
 
 from src.db_app import DBSqlite
 from src.interface import (
@@ -52,7 +53,11 @@ logger.addHandler(logging.StreamHandler())
 class TokenError(Exception): ...
 
 
-token = secrets["TOKEN"]
+if os.environ.get("TOKEN"):
+    token = os.environ["TOKEN"]
+else:
+    token = secrets["TOKEN"]
+
 
 if token:
     bot = Bot(
@@ -67,7 +72,7 @@ else:
 
 class StockDeviceCallback(CallbackData, prefix="add_stock_device"):
     reaction_text: str
-    stock_device_id: int
+    stock_device_id: str
 
 
 class DeviceCallback(CallbackData, prefix="add_device"):
@@ -88,9 +93,14 @@ class DeviceTypeCallback(CallbackData, prefix="add_type"):
 # тест
 class DBotAPI:
     def __init__(self) -> None:
-        self.db_name = secrets["DB_NAME"]
+        if os.environ.get("DB_NAME"):
+            self.db_name = os.environ["DB_NAME"]
+        else:
+            self.db_name = secrets["DB_NAME"]
 
-    def get_stock_device_id(self, stock_device_id: str | None) -> dict:
+    def get_stock_device_id(
+        self, stock_device_id: str | None, stock_device_name: str | None
+    ) -> dict:
         if isinstance(self.db_name, str):
             with DBSqlite(self.db_name) as conn:
                 interface = InterfaceConnectDB(
@@ -99,10 +109,10 @@ class DBotAPI:
                     query=QueryInterface(table=StockDeviceData),
                 )
 
-                if stock_device_id:
+                if stock_device_id and stock_device_name:
                     try:
                         stock_device = interface.get_repr_stock_data(
-                            int(stock_device_id)
+                            int(stock_device_id), stock_device_name
                         )
                         return stock_device.model_dump()
 
@@ -230,7 +240,20 @@ class DBotAPI:
         else:
             raise TypeError("Не передано название базы данных")
 
-    def update_stock_device(self, stock_device_id: str | None):
+    def check_stock_device(
+        self, stock_device_id: str | None, device_name: str | None
+    ) -> bool:
+        if isinstance(self.db_name, str):
+            if self.check_stock_device_id(stock_device_id) and self.check_device_id(
+                device_name
+            ):
+                return True
+            else:
+                return False
+        else:
+            raise TypeError("Не передано название базы данных")
+
+    def update_stock_device(self, stock_device_id: str | None, device_name: str | None):
         if isinstance(self.db_name, str):
             with DBSqlite(self.db_name) as conn:
                 interface = InterfaceConnectDB(
@@ -240,13 +263,17 @@ class DBotAPI:
                 )
                 date = modificate_date_to_str()
 
-                if stock_device_id:
+                if (
+                    self.check_device_id(device_name)
+                    and self.check_stock_device_id(stock_device_id)
+                    and device_name
+                    and stock_device_id
+                ):
+                    device_id = self.get_device_id(device_name)
                     set_data = (TableRow("at_clean_date"), RowValue(date))
-                    where_data = (
-                        TableRow("stock_device_id"),
-                        RowValue(stock_device_id),
-                    )
-                    interface.update_data(set_data, where_data)
+                    one_data = (TableRow("stock_device_id"), RowValue(stock_device_id))
+                    two_data = (TableRow("device_id"), RowValue(device_id))
+                    interface.update_data(set_data, one_data, two_data)
                 else:
                     raise ValueError
         else:
@@ -474,49 +501,53 @@ class DBotAPI:
             raise TypeError("Не передано название базы данных")
 
     def gen_inline_kb(self, type_request_list: str) -> InlineKeyboardMarkup:
-        lst_btn = []
-        lst_btn.append([InlineKeyboardButton(text="/cancel", callback_data="cancel")])
+        kb_builder = InlineKeyboardBuilder()
+
         try:
             match type_request_list:
                 case "stock_device":
-                    lst_btn.append(
-                        [
-                            InlineKeyboardButton(
-                                text="/add_stock_device",
-                                callback_data="add_stock_device",
-                            )
-                        ]
-                    )
+                    [
+                        kb_builder.button(
+                            text=item,
+                            callback_data=StockDeviceCallback(
+                                reaction_text=item, stock_device_id=item
+                            ),
+                        )
+                        for item in self.get_all_stock_device_id()
+                    ]
+
                 case "device":
-                    lst_btn.append(
-                        [
-                            InlineKeyboardButton(
-                                text="/add_device",
-                                callback_data="add_device",
-                            )
-                        ]
-                    )
+                    [
+                        kb_builder.button(
+                            text=item,
+                            callback_data=DeviceCallback(
+                                reaction_text=item, device_name=item
+                            ),
+                        )
+                        for item in self.get_all_devices()
+                    ]
 
                 case "company":
-                    lst_btn.append(
-                        [
-                            InlineKeyboardButton(
-                                text="/add_device_company",
-                                callback_data="add_device_company",
-                            )
-                        ]
-                    )
+                    [
+                        kb_builder.button(
+                            text=item,
+                            callback_data=CompanyCallback(
+                                reaction_text=item, company_name=item
+                            ),
+                        )
+                        for item in self.get_all_company()
+                    ]
 
                 case "device_type":
-                    lst_btn.append(
-                        [
-                            InlineKeyboardButton(
-                                text="/add_device_type",
-                                callback_data="add_device_type",
-                            )
-                        ]
-                    )
-
+                    [
+                        kb_builder.button(
+                            text=item,
+                            callback_data=DeviceTypeCallback(
+                                reaction_text=item, device_type=item
+                            ),
+                        )
+                        for item in self.get_all_type()
+                    ]
                 case _:
                     raise ValueError(
                         f"{type_request_list} должен быть одним из [stock_device, device, company]"
@@ -525,4 +556,4 @@ class DBotAPI:
         except sqlite3.Error as err:
             raise err
 
-        return InlineKeyboardMarkup(inline_keyboard=lst_btn)
+        return kb_builder.as_markup()

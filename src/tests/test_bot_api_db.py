@@ -1,6 +1,21 @@
 class TestBotAPI:
     """Тест api взаимодействия бота с базой"""
 
+    def test_get_stock_device_id(self, stock_device_connect, bot_api):
+        """тест: получаем складское устройство по имени через api"""
+
+        device_id = "25"
+        company_name = "k20"
+        res = bot_api.get_stock_device_id(device_id, company_name)
+
+        assert res == {
+            "stock_device_id": 25,
+            "device_name": "k20",
+            "company_name": "Clay Paky",
+            "type_title": "beam",
+            "at_clean_date": "2025-04-19",
+        }
+
     def test_check_company_id(self, company_connect, bot_api):
         """тест: проверяем наличие компании через api"""
 
@@ -80,7 +95,8 @@ class TestBotAPI:
             row="stock_device_id", val=stock_device_id
         )
         stock_device_id_update = "35"
-        bot_api.update_stock_device(stock_device_id)
+        device_name = "k20"
+        bot_api.update_stock_device(stock_device_id, device_name)
         before_update = stock_device_connect.get_once_data(
             row="stock_device_id", val=stock_device_id_update
         )

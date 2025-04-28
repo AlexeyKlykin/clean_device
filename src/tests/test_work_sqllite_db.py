@@ -14,8 +14,8 @@ def test_work_connect_db_sqlite():
 
         assert res == [
             ("stock_device",),
-            ("device",),
             ("sqlite_sequence",),
+            ("device",),
             ("device_company",),
             ("device_type",),
         ]
