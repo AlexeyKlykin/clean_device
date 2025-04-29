@@ -7,7 +7,9 @@ from aiogram.types import ReplyKeyboardRemove
 
 from src.bot.keyboard.keyboard_start import kb_start
 from src.run_bot import (
+    CompanyCallback,
     DBotAPI,
+    DeviceTypeCallback,
 )
 
 logging.basicConfig(
@@ -31,7 +33,7 @@ class AddDevice(StatesGroup):
 
 
 @device_router.message(F.text == "/add_device")
-async def add_device_name(message: Message, state: FSMContext):
+async def device(message: Message, state: FSMContext):
     await message.answer(
         text="Введите название устройства", reply_markup=ReplyKeyboardRemove()
     )
@@ -39,23 +41,63 @@ async def add_device_name(message: Message, state: FSMContext):
 
 
 @device_router.message(AddDevice.device_name)
-async def add_company_id_for_device(message: Message, state: FSMContext):
+async def device_name(message: Message, state: FSMContext):
     await state.update_data(device_name=message.text)
-    await message.answer(text="Введите компанию производитель прибора")
-    await state.set_state(AddDevice.company_name)
+    await message.answer(
+        text="Введите компанию производитель прибора",
+        reply_markup=bot_api_db.gen_inline_kb("company"),
+    )
 
 
-@device_router.message(AddDevice.company_name)
-async def add_type_id_for_device(message: Message, state: FSMContext):
-    await state.update_data(company_name=message.text)
-    await message.answer(text="Введите название типа прибора")
-    await state.set_state(AddDevice.type_title)
+@device_router.callback_query(
+    CompanyCallback.filter(F.reaction_text.in_(bot_api_db.get_all_company()))
+)
+async def company_for_device(
+    callback: CallbackQuery, callback_data: CompanyCallback, state: FSMContext
+):
+    await callback.answer()
+    device_data = await state.get_data()
+    device_data["company_name"] = callback_data.company_name
+    await state.set_data(device_data)
+
+    if callback.message:
+        if device_data["company_name"]:
+            await callback.message.answer(
+                text="Выберите тип прибора",
+                reply_markup=bot_api_db.gen_inline_kb("device_type"),
+            )
+
+        else:
+            await callback.message.answer(
+                text="Выберите тип прибора", reply_markup=kb_start
+            )
+            await state.clear()
 
 
-@device_router.message(AddDevice.type_title)
-async def add_device(message: Message, state: FSMContext):
-    await state.update_data(type_title=message.text)
-    data = await state.get_data()
-    bot_api_db.save_device_from_bot_into_db(data)
-    await message.answer(text="Данные прибора записаны в бд", reply_markup=kb_start)
+@device_router.callback_query(
+    DeviceTypeCallback.filter(F.reaction_text.in_(bot_api_db.get_all_type()))
+)
+async def type_for_device(
+    callback: CallbackQuery, callback_data: DeviceTypeCallback, state: FSMContext
+):
+    await callback.answer()
+    device_data = await state.get_data()
+    device_data["type_title"] = callback_data.device_type
+    bot_api_db.save_device_from_bot_into_db(device_data)
+
+    if callback.message:
+        await callback.message.answer(
+            text="Прибор добавлен в базу", reply_markup=kb_start
+        )
+
+    await state.clear()
+
+
+@device_router.callback_query(F.data == "/cancel")
+async def cance_stock(callback: CallbackQuery, state: FSMContext):
+    await callback.answer()
+    if callback.message:
+        await callback.message.answer(
+            text="Очистка всех запросов", reply_markup=kb_start
+        )
     await state.clear()

@@ -1,4 +1,4 @@
-from src.interface import (
+from src.schema_for_validate import (
     DeviceCompanyTable,
     DeviceTable,
     DeviceTypeTable,
@@ -18,14 +18,12 @@ class TestConnectionInterfaceStockDevice:
 
         res = stock_device_connect.get_all_data()
         assert list(res) == [
-            [
-                StockDeviceTable(
-                    stock_device_id=25, device_id=1, at_clean_date="2025-04-19"
-                ),
-                StockDeviceTable(
-                    stock_device_id=35, device_id=2, at_clean_date="2025-04-29"
-                ),
-            ]
+            StockDeviceTable(
+                stock_device_id=25, device_id=1, at_clean_date="2025-04-19"
+            ),
+            StockDeviceTable(
+                stock_device_id=35, device_id=2, at_clean_date="2025-04-29"
+            ),
         ]
 
     def test_get_once_data_stock_device(self, stock_device_connect):
@@ -95,10 +93,8 @@ class TestConnectionInterfaceDevice:
 
         res = device_connect.get_all_data()
         assert list(res) == [
-            [
-                DeviceTable(device_name="k20", company_id=1, type_device_id=1),
-                DeviceTable(device_name="laser beam", company_id=2, type_device_id=1),
-            ]
+            DeviceTable(device_name="k20", company_id=1, type_device_id=1),
+            DeviceTable(device_name="laser beam", company_id=2, type_device_id=1),
         ]
 
     def test_get_once_data_device(self, device_connect):
@@ -150,18 +146,16 @@ class TestConnectionInterfaceDeviceCompany:
 
         res = company_connect.get_all_data()
         assert list(res) == [
-            [
-                DeviceCompanyTable(
-                    company_name="Clay Paky",
-                    producer_country="Itali",
-                    description_company="https://www.claypaky.it/",
-                ),
-                DeviceCompanyTable(
-                    company_name="Light Craft",
-                    producer_country="Russia",
-                    description_company="https://light-craft.ru/",
-                ),
-            ]
+            DeviceCompanyTable(
+                company_name="Clay Paky",
+                producer_country="Itali",
+                description_company="https://www.claypaky.it/",
+            ),
+            DeviceCompanyTable(
+                company_name="Light Craft",
+                producer_country="Russia",
+                description_company="https://light-craft.ru/",
+            ),
         ]
 
     def test_get_once_data_device_company(self, company_connect):
@@ -218,16 +212,12 @@ class TestConnectionInterfaceTypeDevice:
 
         res = type_connect.get_all_data()
         assert list(res) == [
-            [
-                DeviceTypeTable(
-                    type_title="beam",
-                    type_description="Light device not spot",
-                ),
-                DeviceTypeTable(
-                    type_title="spot",
-                    type_description="light device not beam",
-                ),
-            ]
+            DeviceTypeTable(
+                type_title="beam", type_description="Light device not spot"
+            ),
+            DeviceTypeTable(
+                type_title="spot", type_description="light device not beam"
+            ),
         ]
 
     def test_get_once_data_type_device(self, type_connect):

@@ -1,4 +1,4 @@
-from src.interface import (
+from src.schema_for_validate import (
     DeviceTypeTable,
 )
 

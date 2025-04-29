@@ -14,23 +14,26 @@ from aiogram.filters.callback_data import CallbackData
 from aiogram.types import InlineKeyboardMarkup
 from aiogram.utils.keyboard import InlineKeyboardBuilder
 
+from src.data_resolve_interface import InterfaceConnectDB
 from src.db_app import DBSqlite
-from src.interface import (
+
+from src.query_interface import QueryInterface
+from src.schema_for_validate import (
+    DeviceCompanyTable,
+    DeviceTable,
+    DeviceTypeTable,
     OutputDeviceCompanyTable,
     OutputDeviceTable,
     OutputDeviceTypeTable,
-    QueryInterface,
-    InterfaceConnectDB,
-    DeviceTable,
-    DeviceTypeTable,
-    DeviceCompanyTable,
     RowValue,
+    StockBrockenDeviceData,
     StockDeviceData,
     StockDeviceTable,
     TableRow,
     company_factory,
     device_factory,
     device_type_factory,
+    output_brocket_device_factory,
     output_company_factory,
     output_device_factory,
     output_device_type_factory,
@@ -98,9 +101,82 @@ class DBotAPI:
         else:
             self.db_name = secrets["DB_NAME"]
 
+    def set_full_data(self):
+        fp_lst = [
+            "stock_device_202504282233.sql",
+            "device_202504282234.sql",
+            "device_company_202504282234.sql",
+            "device_type_202504282235.sql",
+        ]
+
+        if isinstance(self.db_name, str):
+            with DBSqlite(self.db_name) as conn:
+                for fp in fp_lst:
+                    with open(fp, "r") as file:
+                        conn.executescript(file.read())
+
+        else:
+            raise TypeError("Не передано название базы данных")
+
+    def add_mark_device(
+        self, stock_device_id: str | None, device_name: str | None, mark: str | None
+    ):
+        if isinstance(self.db_name, str):
+            with DBSqlite(self.db_name) as conn:
+                interface = InterfaceConnectDB(
+                    conn,
+                    row_factory=output_device_factory,
+                    query=QueryInterface(table=StockDeviceData),
+                )
+
+                if stock_device_id and device_name and mark:
+                    device_id = self.get_device_id(device_name=device_name)
+                    interface.mark_device(
+                        stock_device_id=(
+                            TableRow("stock_device_id"),
+                            RowValue(stock_device_id),
+                        ),
+                        device_id=(TableRow("device_id"), RowValue(device_id)),
+                        mark=mark,
+                    )
+        else:
+            raise TypeError("Не передано название базы данных")
+
+    def get_broken_stock_device_at_date(
+        self, date: str | None = None
+    ) -> List[StockBrockenDeviceData] | str:
+        stock_devices = []
+
+        if isinstance(self.db_name, str):
+            with DBSqlite(self.db_name) as conn:
+                interface = InterfaceConnectDB(
+                    conn,
+                    row_factory=output_brocket_device_factory,
+                    query=QueryInterface(table=StockBrockenDeviceData),
+                )
+
+                if date:
+                    stock_devices = (
+                        interface.get_to_retrieve_all_broken_devices_at_date(
+                            (TableRow("at_clean_date"), RowValue(date)),
+                        )
+                    )
+
+                else:
+                    stock_devices = (
+                        interface.get_to_retrieve_all_broken_devices_at_date(
+                            (
+                                TableRow("d.at_clean_date"),
+                                RowValue(modificate_date_to_str()),
+                            ),
+                        )
+                    )
+
+        return stock_devices
+
     def get_stock_device_id(
         self, stock_device_id: str | None, stock_device_name: str | None
-    ) -> dict:
+    ) -> dict | str:
         if isinstance(self.db_name, str):
             with DBSqlite(self.db_name) as conn:
                 interface = InterfaceConnectDB(
@@ -109,18 +185,26 @@ class DBotAPI:
                     query=QueryInterface(table=StockDeviceData),
                 )
 
-                if stock_device_id and stock_device_name:
+                if (stock_device_id and stock_device_name) and self.check_stock_device(
+                    stock_device_id, stock_device_name
+                ):
                     try:
                         stock_device = interface.get_repr_stock_data(
                             int(stock_device_id), stock_device_name
                         )
-                        return stock_device.model_dump()
+                        if stock_device:
+                            return stock_device.model_dump()
+                        else:
+                            return "Прибора не существует в базе"
 
                     except ValueError:
                         raise ValueError((f"{stock_device_id} должен быть числом"))
 
                 else:
-                    raise ValueError
+                    logger.warning(
+                        f"Прибор с id-{stock_device_id} и названием {stock_device_name} не существует в базе"
+                    )
+                    return f"Прибор с id-{stock_device_id} и названием {stock_device_name} не существует в базе"
 
         else:
             raise TypeError("Не передано название базы данных")
@@ -397,6 +481,7 @@ class DBotAPI:
             raise TypeError("Не передано название базы данных")
 
     def get_all_stock_device_id(self) -> List[str]:
+        lst_stock_device_id = []
         if isinstance(self.db_name, str):
             with DBSqlite(self.db_name) as conn:
                 interface = InterfaceConnectDB(
@@ -407,22 +492,18 @@ class DBotAPI:
                 lst_stock_device_id: List[str] = []
 
                 for stock_device in interface.get_all_data():
-                    if stock_device:
-                        [
-                            lst_stock_device_id.append(device.stock_device_id)
-                            for device in stock_device
-                        ]
-                    else:
-                        raise ValueError("Нет данных для передачи")
+                    lst_stock_device_id.append(stock_device.stock_device_id)
 
-                if lst_stock_device_id:
-                    return lst_stock_device_id
-                else:
-                    raise ValueError("Список пуст")
+            if len(lst_stock_device_id) == 0:
+                logger.warning("Список пустой")
         else:
             raise TypeError("Не передано название базы данных")
 
+        return lst_stock_device_id
+
     def get_all_devices(self) -> List[str]:
+        lst_device_name = []
+
         if isinstance(self.db_name, str):
             with DBSqlite(self.db_name) as conn:
                 interface = InterfaceConnectDB(
@@ -434,21 +515,20 @@ class DBotAPI:
 
                 for device in interface.get_all_data():
                     if device:
-                        [
-                            lst_device_name.append(device.device_name)
-                            for device in device
-                        ]
+                        lst_device_name.append(device.device_name)
                     else:
                         raise ValueError("Нет данных для передачи")
 
-                if lst_device_name:
-                    return lst_device_name
-                else:
-                    raise ValueError("Список пуст")
+            if len(lst_device_name) == 0:
+                logger.warning("Список пуст")
         else:
             raise TypeError("Не передано название базы данных")
 
+        return lst_device_name
+
     def get_all_company(self) -> List[str]:
+        lst_company_name = []
+
         if isinstance(self.db_name, str):
             with DBSqlite(self.db_name) as conn:
                 interface = InterfaceConnectDB(
@@ -456,25 +536,20 @@ class DBotAPI:
                     row_factory=company_factory,
                     query=QueryInterface(table=DeviceCompanyTable),
                 )
-                lst_company_name = []
 
-                for companys in interface.get_all_data():
-                    if companys:
-                        [
-                            lst_company_name.append(company.company_name)
-                            for company in companys
-                        ]
-                    else:
-                        raise ValueError("Нет данных для передачи")
+                for company in interface.get_all_data():
+                    lst_company_name.append(company.company_name)
 
-                if lst_company_name:
-                    return lst_company_name
-                else:
-                    raise ValueError("Список пуст")
+            if len(lst_company_name) == 0:
+                logger.warning("Список пуст")
         else:
             raise TypeError("Не передано название базы данных")
 
+        return lst_company_name
+
     def get_all_type(self) -> List[str]:
+        lst_type_device_title = []
+
         if isinstance(self.db_name, str):
             with DBSqlite(self.db_name) as conn:
                 interface = InterfaceConnectDB(
@@ -482,26 +557,96 @@ class DBotAPI:
                     row_factory=device_type_factory,
                     query=QueryInterface(table=DeviceTypeTable),
                 )
-                lst_type_device_title = []
 
-                for type_devices in interface.get_all_data():
-                    if type_devices:
-                        [
-                            lst_type_device_title.append(type_device.type_title)
-                            for type_device in type_devices
-                        ]
-                    else:
-                        raise ValueError("Нет данных для передачи")
+                for type_device in interface.get_all_data():
+                    lst_type_device_title.append(type_device.type_title)
 
-                if lst_type_device_title:
-                    return lst_type_device_title
-                else:
-                    raise ValueError("Список пуст")
+            if len(lst_type_device_title) == 0:
+                logger.warning("Список пуст")
         else:
             raise TypeError("Не передано название базы данных")
 
+        return lst_type_device_title
+
+    def gen_inline_kb_for_get_request(
+        self, type_request_list: str
+    ) -> InlineKeyboardMarkup:
+        kb_builder = InlineKeyboardBuilder()
+        kb_builder.button(text="Cancel", callback_data="/cancel")
+
+        try:
+            match type_request_list:
+                case "mark":
+                    [
+                        kb_builder.button(
+                            text=item,
+                            callback_data=DeviceCallback(
+                                reaction_text=f"mark_device_{item}",
+                                device_name=item,
+                            ),
+                        )
+                        for item in self.get_all_devices()
+                    ]
+
+                case "stock_device":
+                    [
+                        kb_builder.button(
+                            text=item,
+                            callback_data=StockDeviceCallback(
+                                reaction_text=f"get_stock_device_{item}",
+                                stock_device_id=item,
+                            ),
+                        )
+                        for item in self.get_all_stock_device_id()
+                    ]
+
+                case "device":
+                    [
+                        kb_builder.button(
+                            text=item,
+                            callback_data=DeviceCallback(
+                                reaction_text=f"get_device_{item}", device_name=item
+                            ),
+                        )
+                        for item in self.get_all_devices()
+                    ]
+
+                case "company":
+                    [
+                        kb_builder.button(
+                            text=item,
+                            callback_data=CompanyCallback(
+                                reaction_text=item, company_name=item
+                            ),
+                        )
+                        for item in self.get_all_company()
+                    ]
+
+                case "device_type":
+                    [
+                        kb_builder.button(
+                            text=item,
+                            callback_data=DeviceTypeCallback(
+                                reaction_text=f"get_device_type_{item}",
+                                device_type=item,
+                            ),
+                        )
+                        for item in self.get_all_type()
+                    ]
+                case _:
+                    raise ValueError(
+                        f"{type_request_list} должен быть одним из [stock_device, device, company]"
+                    )
+
+        except sqlite3.Error as err:
+            raise err
+
+        kb_builder.adjust(3)
+        return kb_builder.as_markup()
+
     def gen_inline_kb(self, type_request_list: str) -> InlineKeyboardMarkup:
         kb_builder = InlineKeyboardBuilder()
+        kb_builder.button(text="Cancel", callback_data="/cancel")
 
         try:
             match type_request_list:
@@ -556,4 +701,5 @@ class DBotAPI:
         except sqlite3.Error as err:
             raise err
 
+        kb_builder.adjust(3)
         return kb_builder.as_markup()

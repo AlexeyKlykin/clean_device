@@ -39,6 +39,7 @@ CREATE_TABLE_STOCK_DEVICE = """CREATE TABLE IF NOT EXISTS stock_device
     (id integer primary key AUTOINCREMENT,
     stock_device_id integer,
     at_clean_date text not null,
+    stock_device_status BOOLEAN DEFAULT 1,
     device_id integer,
     foreign key(device_id) references device(device_id))
 """

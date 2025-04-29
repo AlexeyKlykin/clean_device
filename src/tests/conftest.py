@@ -1,18 +1,19 @@
 from pytest import fixture
+from src.data_resolve_interface import InterfaceConnectDB
 from src.db_app import DBSqlite
-from src.interface import (
+
+from src.query_interface import QueryInterface
+from src.run_bot import DBotAPI
+from src.schema_for_validate import (
     DeviceCompanyTable,
     DeviceTable,
     DeviceTypeTable,
-    InterfaceConnectDB,
-    QueryInterface,
     StockDeviceTable,
     company_factory,
     device_factory,
     device_type_factory,
     stock_device_factory,
 )
-from src.run_bot import DBotAPI
 from src.secret import secrets
 
 table_list = ["device", "device_type", "device_company", "stock_device"]

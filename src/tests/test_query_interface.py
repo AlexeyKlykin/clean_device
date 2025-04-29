@@ -1,4 +1,4 @@
-from src.interface import (
+from src.schema_for_validate import (
     RowValue,
     TableRow,
 )
@@ -7,8 +7,30 @@ from src.interface import (
 class TestQuery:
     """Тест интерфейсов генерации запросов"""
 
+    def test_query_to_retrieve_all_broken_devices_at_date(self, query_interface):
+        """тест: строкового запроса для всех приборов в ремонте"""
+
+        clean_date = "at_clean_date=30-4-25"
+
+        assert (
+            query_interface.query_to_retrieve_all_broken_devices_at_date(clean_date)
+            == "SELECT sd.stock_device_id, d.device_name, sd.at_clean_date\nFROM device_type sd\nLEFT JOIN device d ON d.device_id = sd.device_id\nWHERE at_clean_date=30-4-25 and sd.stock_device_status = '0'\n"
+        )
+
+    def test_query_mark_device(self, query_interface):
+        """тест: строкового запроса передачи марки для устройства"""
+
+        stock_device_id: str = "stock_device_id=35"
+        device_id: str = "device_id=1"
+        mark: str = "0"
+        assert (
+            query_interface.query_mark_device(stock_device_id, device_id, mark)
+            == "UPDATE device_type SET stock_device_status = '0'\nWHERE stock_device_id=35 and device_id=1\n"
+        )
+
     def test_query_update_data_by_two_arg(self, query_interface):
         """тест: строкового запроса об обновлении данныз в таблице"""
+
         raw_set_data = {TableRow("stock_device_id"): RowValue("26")}
         raw_where_data_one = {TableRow("stock_device_id"): RowValue("25")}
         raw_where_data_two = {TableRow("device_id"): RowValue("1")}
