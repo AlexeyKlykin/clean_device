@@ -1,6 +1,6 @@
 import asyncio
 
-from src.run_bot import bot, dp
+from src.bot_api import bot, dp
 from src.bot.handlers import routers
 
 

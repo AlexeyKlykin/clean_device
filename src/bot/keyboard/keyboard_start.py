@@ -4,7 +4,6 @@ button_start = [
     [
         KeyboardButton(text="/add"),
         KeyboardButton(text="/get"),
-        KeyboardButton(text="/add_full_data"),
     ],
 ]
 

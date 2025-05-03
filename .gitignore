@@ -15,3 +15,5 @@ wheels/
 clean_device_test.db
 clean_device.db
 clean_device.db
+clean_device_test
+clean_device_bak.db

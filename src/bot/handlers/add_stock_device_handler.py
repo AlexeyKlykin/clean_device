@@ -6,7 +6,7 @@ from aiogram.types import CallbackQuery, Message
 from aiogram.types import ReplyKeyboardRemove
 
 from src.bot.keyboard.keyboard_start import kb_start
-from src.run_bot import DBotAPI, DeviceCallback
+from src.bot_api import APIBotDb, DeviceCallback, Marker
 
 logging.basicConfig(
     level=logging.WARNING,
@@ -25,7 +25,7 @@ class AddStockDevice(StatesGroup):
     device_name = State()
 
 
-bot_api_db = DBotAPI()
+bot_api_db = APIBotDb()
 
 
 @stock_device_router.message(F.text == "/add_stock_device")
@@ -41,12 +41,13 @@ async def add_stock_device_id(message: Message, state: FSMContext):
 async def add_device_id_for_stock_device(message: Message, state: FSMContext):
     await state.update_data(stock_device_id=message.text)
     await message.answer(
-        text="Введите название прибора", reply_markup=bot_api_db.gen_inline_kb("device")
+        text="Введите название прибора",
+        reply_markup=bot_api_db.bot_inline_kb(Marker.DEVICE),
     )
 
 
 @stock_device_router.callback_query(
-    DeviceCallback.filter(F.reaction_text.in_(bot_api_db.get_all_devices()))
+    DeviceCallback.filter(F.text_search.in_(bot_api_db.bot_keyboard_device_lst()))
 )
 async def add_stock_device(
     callback: CallbackQuery, callback_data: DeviceCallback, state: FSMContext
@@ -54,29 +55,28 @@ async def add_stock_device(
     await callback.answer()
     stock_device_data = await state.get_data()
     stock_device_data["device_name"] = callback_data.device_name
-    stock_device_id = stock_device_data["stock_device_id"]
-    device_name = stock_device_data["device_name"]
 
-    if bot_api_db.check_stock_device(stock_device_id, device_name):
-        bot_api_db.update_stock_device(stock_device_id, device_name)
+    if bot_api_db.bot_check_device_from_stockpile(stock_device_data):
+        bot_api_db.bot_update_devices_stock_clearence_date(stock_device_data)
         if callback.message:
             await callback.message.answer(
-                text=f"Данные прибора по {stock_device_id} обновленны",
+                text=f"Данные прибора {stock_device_data} обновленны",
                 reply_markup=kb_start,
             )
 
-    elif bot_api_db.check_device_id(device_name):
-        bot_api_db.save_stock_device_into_db_from_bot(stock_device_data)
+    elif bot_api_db.bot_check_device(stock_device_data["device_name"]):
+        bot_api_db.bot_set_device_from_stockpile_by_name_and_id_to_db(stock_device_data)
         if callback.message:
             await callback.message.answer(
-                text=f"Данные прибора по {stock_device_id} сохранены",
+                text=f"Данные прибора {stock_device_data} сохранены",
                 reply_markup=kb_start,
             )
 
     else:
         if callback.message:
             await callback.message.answer(
-                text=f"В базе отсутствет запись об {device_name}", reply_markup=kb_start
+                text=f"В базе отсутствет запись {stock_device_data}",
+                reply_markup=kb_start,
             )
 
     await state.clear()

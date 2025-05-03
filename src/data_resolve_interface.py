@@ -1,10 +1,15 @@
 import sqlite3
 import logging
-from typing import Callable, List, Tuple
+from typing import Dict, List, Type
 from abc import ABC, abstractmethod
 
-from src.query_interface import AbstractInterfaceQuery
-from src.schema_for_validate import AbstractTable, RowValue, StockDeviceData, TableRow
+from src.query_interface import QueryInterface
+from src.schema_for_validation import (
+    AbstractTable,
+    FabricRowFactory,
+    RowValue,
+    TableRow,
+)
 
 logging.basicConfig(
     level=logging.WARNING,
@@ -15,197 +20,199 @@ logger = logging.getLogger(__name__)
 logger.addHandler(logging.StreamHandler())
 
 
-class AbstractInterfaceConnectDB(ABC):
+class AbstractDatabaseTableHandlerInterface(ABC):
     @abstractmethod
-    def get_all_data(self) -> List[AbstractTable]: ...
+    def set_item(self, set_data: tuple): ...
 
     @abstractmethod
-    def get_once_data(self, row: str, val: str) -> AbstractTable | int | str: ...
+    def set_items(self, set_data_lst: List[tuple]): ...
 
     @abstractmethod
-    def set_data(self, set_data: tuple): ...
+    def get_item(self, where_data: Dict[TableRow, RowValue]) -> AbstractTable: ...
 
     @abstractmethod
-    def set_many_data(self, set_data: List[tuple]): ...
-
-    @abstractmethod
-    def update_data(
+    def get_items(
         self,
-        set_data: Tuple[TableRow, RowValue],
-        one_data: Tuple[TableRow, RowValue],
-        two_data: Tuple[TableRow, RowValue] | None = None,
+        where_data: Dict[TableRow, RowValue] | None = None,
+    ) -> List[AbstractTable]: ...
+
+    @abstractmethod
+    def update_item(
+        self, set_data: Dict[TableRow, RowValue], where_data: Dict[TableRow, RowValue]
     ): ...
 
     @abstractmethod
-    def get_repr_stock_data(
-        self, stock_device_id: int, stock_device_name: str
-    ) -> StockDeviceData: ...
-
-    @abstractmethod
-    def get_to_retrieve_all_broken_devices_at_date(
+    def change_device_status(
         self,
-        clean_date: Tuple[TableRow, RowValue],
-    ) -> list: ...
-
-    @abstractmethod
-    def mark_device(
-        self,
-        stock_device_id: Tuple[TableRow, RowValue],
-        device_id: Tuple[TableRow, RowValue],
-        mark: str,
+        where_data: Dict[TableRow, RowValue],
+        set_data: Dict[TableRow, RowValue],
     ): ...
 
 
-class InterfaceConnectDB(AbstractInterfaceConnectDB):
-    def __init__(
-        self,
-        conn: sqlite3.Connection,
-        row_factory: Callable,
-        query: AbstractInterfaceQuery,
-    ) -> None:
+class DatabaseTableHandlerInterface(AbstractDatabaseTableHandlerInterface):
+    def __init__(self, conn: sqlite3.Connection) -> None:
+        self._schema = None
+        self._query = QueryInterface()
         self.conn = conn
-        self.conn.row_factory = row_factory
-        self.query = query
+        self.row_fabric = FabricRowFactory()
 
-    # тест
-    def mark_device(
-        self,
-        stock_device_id: Tuple[TableRow, RowValue],
-        device_id: Tuple[TableRow, RowValue],
-        mark: str,
+    @property
+    def schema(self):
+        if self._schema:
+            return self._schema
+        else:
+            raise Exception("Не передана схема")
+
+    @schema.setter
+    def schema(self, schema: Type[AbstractTable]):
+        self._schema = schema
+        self.row_fabric.choice_row_factory = self.schema
+        self.conn.row_factory = self.row_fabric.choice_row_factory
+        self._query.table = schema
+
+    def change_device_status(
+        self, where_data: Dict[TableRow, RowValue], set_data: Dict[TableRow, RowValue]
     ):
+        cursor = self.conn.cursor()
+
         try:
-            cursor = self.conn.cursor()
-            cursor.execute(
-                self.query.query_mark_device(
-                    stock_device_id=self.query.transform_tuple(stock_device_id),
-                    device_id=self.query.transform_tuple(device_id),
-                    mark=mark,
-                )
+            query = self._query.query_update(
+                set_data=set_data,
+                where_data=where_data,
             )
-            cursor.close()
+            cursor.execute(query)
+            self.conn.commit()
 
-        except Exception as err:
-            logger.warning(err)
+        except sqlite3.OperationalError as err:
+            self.conn.rollback()
             raise err
 
-    # тест
-    def get_to_retrieve_all_broken_devices_at_date(
-        self,
-        clean_date: Tuple[TableRow, RowValue],
-    ) -> list:
-        try:
-            cursor = self.conn.cursor()
-            cursor.execute(
-                self.query.query_to_retrieve_all_broken_devices_at_date(
-                    clean_date=self.query.transform_tuple(clean_date),
-                )
-            )
-            res = cursor.fetchall()
-            cursor.close()
-            return res
-
-        except Exception as err:
-            raise err
-
-    def get_repr_stock_data(
-        self, stock_device_id: int, stock_device_name: str
-    ) -> StockDeviceData:
-        try:
-            cursor = self.conn.cursor()
-            cursor.execute(
-                self.query.query_get_stock_device(
-                    stock_device_id=stock_device_id, device_name=stock_device_name
-                )
-            )
-            res = cursor.fetchone()
-            cursor.close()
-            return res
-
-        except Exception as err:
-            raise err
-
-    def get_all_data(self):
-        try:
-            cursor = self.conn.cursor()
-            cursor.execute(self.query.query_get_all())
-
-            res = cursor.fetchall()
-            cursor.close()
-            return res
-
-        except Exception as err:
-            raise err
-
-    def get_once_data(self, row: str, val: str):
-        try:
-            cursor = self.conn.cursor()
-            cursor.execute(
-                self.query.query_get_data_by_value(
-                    where_data=self.query.gen_data(row=row, val=val)
-                )
-            )
-            res = cursor.fetchone()
-            cursor.close()
-            return res
-
-        except Exception as err:
-            raise err
-
-    def set_data(self, set_data: tuple):
-        try:
-            cursor = self.conn.cursor()
-            cursor.execute(self.query.query_set(), set_data)
+        finally:
             cursor.close()
 
+    def set_item(self, set_data):
+        cursor = self.conn.cursor()
+
+        try:
+            query = self._query.query_set()
+            cursor.execute(query, set_data)
+            self.conn.commit()
+
         except Exception as err:
+            self.conn.rollback()
             raise err
 
-    def set_many_data(self, set_data: List[tuple]):
-        try:
-            cursor = self.conn.cursor()
-            cursor.executemany(self.query.query_set(), [item for item in set_data])
+        finally:
             cursor.close()
 
+    def set_items(self, set_data_lst):
+        cursor = self.conn.cursor()
+
+        try:
+            query = self._query.query_set()
+            cursor.executemany(query, set_data_lst)
+            self.conn.commit()
+
         except Exception as err:
+            self.conn.rollback()
             raise err
 
-    def update_data(
-        self,
-        set_data: Tuple[TableRow, RowValue],
-        one_data: Tuple[TableRow, RowValue],
-        two_data: Tuple[TableRow, RowValue] | None = None,
-    ):
-        try:
-            cursor = self.conn.cursor()
+        finally:
+            cursor.close()
 
-            if two_data:
-                cursor.execute(
-                    self.query.query_update_data_by_two_arg(
-                        raw_set_data=self.query.gen_data(
-                            row=set_data[0], val=set_data[1]
-                        ),
-                        raw_where_data_one=self.query.gen_data(
-                            row=one_data[0], val=one_data[1]
-                        ),
-                        raw_where_data_two=self.query.gen_data(
-                            row=two_data[0], val=two_data[1]
-                        ),
+    def get_item(self, where_data) -> AbstractTable:
+        cursor = self.conn.cursor()
+
+        try:
+            match self.conn.row_factory.__name__:
+                case "output_device_type_factory" | "output_company_factory":
+                    query = self._query.query_get_data_by_value(where_data=where_data)
+                    cursor.execute(query)
+                    return cursor.fetchone()
+
+                case "output_device_factory":
+                    query = self._query.query_show_devices(where_data=where_data)
+                    cursor.execute(query)
+                    return cursor.fetchone()
+
+                case "repr_stock_device_factory":
+                    query = self._query.query_show_stock_devices(where_data=where_data)
+                    cursor.execute(query)
+                    return cursor.fetchone()
+
+                case _:
+                    logger.warning(
+                        f"{self.conn.row_factory} не может быть передан в качестве фабрики строк"
                     )
-                )
+                    raise
 
-            else:
-                cursor.execute(
-                    self.query.query_update(
-                        raw_set_data=self.query.gen_data(
-                            row=set_data[0], val=set_data[1]
-                        ),
-                        raw_where_data=self.query.gen_data(
-                            row=one_data[0], val=one_data[1]
-                        ),
-                    )
-                )
-            cursor.close()
+        except sqlite3.OperationalError as err:
+            logger.warning("Скорее всего вернулость пустое значение")
+            raise err
 
         except Exception as err:
             raise err
+
+        finally:
+            cursor.close()
+
+    def get_items(self, where_data=None) -> List[AbstractTable]:
+        cursor = self.conn.cursor()
+
+        try:
+            match self.conn.row_factory.__name__:
+                case "output_device_type_factory" | "output_company_factory":
+                    query = self._query.query_get_all()
+                    cursor.execute(query)
+                    return cursor.fetchall()
+
+                case "output_device_factory":
+                    query = self._query.query_show_all_devices()
+                    try:
+                        cursor.execute(query)
+                        return cursor.fetchall()
+
+                    except sqlite3.OperationalError as err:
+                        raise err
+
+                case "output_broken_device_factory":
+                    if where_data:
+                        query = self._query.query_show_all_broken_stock_devices_at_date(
+                            where_data=where_data
+                        )
+                        cursor.execute(query)
+                        return cursor.fetchall()
+
+                    else:
+                        raise ValueError("Не переданы аргументы строки и их значение")
+
+                case _:
+                    logger.warning(
+                        f"{self.conn.row_factory} не может быть передан в качестве фабрики строк"
+                    )
+                    raise
+
+        except sqlite3.OperationalError as err:
+            logger.warning("Скорее всего вернулось пустое значение")
+            raise err
+
+        except Exception as err:
+            raise err
+
+        finally:
+            cursor.close()
+
+    def update_item(self, set_data, where_data):
+        cursor = self.conn.cursor()
+
+        try:
+            query = self._query.query_update(set_data=set_data, where_data=where_data)
+            cursor.execute(query)
+            self.conn.commit()
+
+        except Exception as err:
+            self.conn.rollback()
+            raise err
+
+        finally:
+            cursor.close()

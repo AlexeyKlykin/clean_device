@@ -1,95 +1,112 @@
-from src.schema_for_validate import (
+from pytest import mark
+from src.schema_for_validation import (
     RowValue,
     TableRow,
 )
 
+## не протестировано на всех типах запросов
 
+
+@mark.query
 class TestQuery:
     """Тест интерфейсов генерации запросов"""
 
-    def test_query_to_retrieve_all_broken_devices_at_date(self, query_interface):
+    def test_transform_where_data(self, query_connect):
+        """тест: вспомогательного метода для преобразования из словаря в строку"""
+
+        all_item = {
+            TableRow("d.device_id"): RowValue("1"),
+            TableRow("d.device_name"): RowValue("k50"),
+        }
+        res = query_connect.transform_where_data(all_item)
+
+        assert res == "d.device_id='1' and d.device_name='k50'"
+
+        two_items = {
+            TableRow("data_id"): RowValue("1"),
+            TableRow("data_title"): RowValue("Clay"),
+        }
+        res = query_connect.transform_where_data(two_items)
+
+        assert res == "data_id='1' and data_title='Clay'"
+
+    def test_transform_list_rows(self, query_connect):
+        """тест: вспомогательного метода для преобразования множества в строку"""
+
+        one_item = {
+            TableRow("data_id"),
+        }
+        res = query_connect.transform_list_rows(one_item)
+
+        assert res == "data_id"
+
+        two_items = [
+            TableRow("data_id"),
+            TableRow("data_title"),
+        ]
+        res = query_connect.transform_list_rows(two_items)
+
+        assert res == "data_id, data_title"
+
+    def test_query_show_all_broken_stock_devices_at_date(
+        self, query_connect, data_from_query_connect
+    ):
         """тест: строкового запроса для всех приборов в ремонте"""
 
-        clean_date = "at_clean_date=30-4-25"
-
         assert (
-            query_interface.query_to_retrieve_all_broken_devices_at_date(clean_date)
-            == "SELECT sd.stock_device_id, d.device_name, sd.at_clean_date\nFROM device_type sd\nLEFT JOIN device d ON d.device_id = sd.device_id\nWHERE at_clean_date=30-4-25 and sd.stock_device_status = '0'\n"
-        )
-
-    def test_query_mark_device(self, query_interface):
-        """тест: строкового запроса передачи марки для устройства"""
-
-        stock_device_id: str = "stock_device_id=35"
-        device_id: str = "device_id=1"
-        mark: str = "0"
-        assert (
-            query_interface.query_mark_device(stock_device_id, device_id, mark)
-            == "UPDATE device_type SET stock_device_status = '0'\nWHERE stock_device_id=35 and device_id=1\n"
-        )
-
-    def test_query_update_data_by_two_arg(self, query_interface):
-        """тест: строкового запроса об обновлении данныз в таблице"""
-
-        raw_set_data = {TableRow("stock_device_id"): RowValue("26")}
-        raw_where_data_one = {TableRow("stock_device_id"): RowValue("25")}
-        raw_where_data_two = {TableRow("device_id"): RowValue("1")}
-
-        assert (
-            query_interface.query_update_data_by_two_arg(
-                raw_set_data, raw_where_data_one, raw_where_data_two
+            query_connect.query_show_all_broken_stock_devices_at_date(
+                data_from_query_connect
             )
-            == "UPDATE device_type SET stock_device_id='26' WHERE stock_device_id='25' and device_id='1'"
+            == "SELECT sd.stock_device_id, d.device_name, sd.at_clean_date \nFROM stock_device as sd\nLEFT JOIN device d ON d.device_id = sd.device_id\nWHERE at_clean_date='30-4-2025' and sd.stock_device_status = '0'\n"
         )
 
-    def test_query_get_stock_device(self, query_interface):
-        """тест: строкового запроса о получении собранных данных о приборе на складе"""
+    def test_query_show_devices(self, query_connect, data_from_query_connect):
+        """тест: строкового запроса всех приборов"""
 
-        stock_device_id = 1
-        device_name = "k20"
         assert (
-            query_interface.query_get_stock_device(stock_device_id, device_name)
-            == "SELECT sd.stock_device_id, d.device_name, dc.company_name, dt.type_title, sd.at_clean_date\nFROM stock_device sd\nLEFT JOIN device d ON d.device_id = sd.device_id\nLEFT JOIN device_company dc ON dc.company_id = d.company_id\nLEFT JOIN device_type dt ON dt.type_device_id = d.type_device_id\nWHERE sd.stock_device_id = '1' and d.device_name = 'k20'\n"
+            query_connect.query_show_devices(where_data=data_from_query_connect)
+            == "SELECT sd.stock_device_id, d.device_name, sd.at_clean_date\nFROM stock_device as sd\nLEFT JOIN device_company as dc ON dc.company_id = d.company_id\nLEFT JOIN device_type as dt ON dt.type_device_id = d.type_device_id\nWHERE at_clean_date='30-4-2025'"
         )
 
-    def test_query_get_data_by_value_for_type_device(self, query_interface):
-        """тест: получения строкового запроса на выполнение получения
-        данных по параметрам в таблице типов приборов"""
+    def test_query_show_stock_devices(self, query_connect, data_from_query_connect):
+        """тест: строкового запроса всех приборов на складе"""
+
+        assert (
+            query_connect.query_show_stock_devices(data_from_query_connect)
+            == "SELECT sd.stock_device_id, d.device_name, sd.at_clean_date\nFROM stock_device as sd\nLEFT JOIN device d ON d.device_id = sd.device_id\nLEFT JOIN device_company dc ON dc.company_id = d.company_id\nLEFT JOIN device_type dt ON dt.type_device_id = d.type_device_id\nWHERE at_clean_date='30-4-2025'\n"
+        )
+
+    def test_query_get_data_by_value(self, query_connect, data_from_query_connect):
+        """тест: строкового запроса получения данных по значению"""
+
+        assert (
+            query_connect.query_get_data_by_value(data_from_query_connect)
+            == "SELECT stock_device_id, device_name, at_clean_date FROM stock_device as sd WHERE at_clean_date='30-4-2025'"
+        )
+
+    def test_query_update(self, query_connect):
+        """тест: строкового запроса обновления данных"""
 
         where_data = {TableRow("type_id"): RowValue("1")}
+        set_data = {TableRow("at_clean_date"): RowValue("30-4-2025")}
 
         assert (
-            query_interface.query_get_data_by_value(where_data)
-            == "SELECT type_title, type_description FROM device_type WHERE type_id='1'"
+            query_connect.query_update(where_data, set_data)
+            == "UPDATE stock_device as sd SET type_id='1' WHERE at_clean_date='30-4-2025'"
         )
 
-    def test_query_set_data_for_type_device(self, query_interface):
-        """тест: получение строкового запроса
-        для добавления данных в таблице типо приборов"""
+    def test_query_set(self, query_connect):
+        """тест: строкового запроса добавления данных"""
 
         assert (
-            query_interface.query_set()
-            == "INSERT INTO device_type(type_title, type_description) VALUES (?, ?)"
+            query_connect.query_set()
+            == "INSERT INTO stock_device as sd(stock_device_id, device_name, at_clean_date) VALUES (?, ?, ?)"
         )
 
-    def test_query_get_all_for_type_device(self, query_interface):
-        """тест: строковый запрос на получение
-        всех данных в таблице типов приборов"""
+    def test_query_get_all(self, query_connect):
+        """тест: строкового запроса для получения всех данных"""
 
         assert (
-            query_interface.query_get_all()
-            == "SELECT type_title, type_description FROM device_type"
-        )
-
-    def test_query_update_type_device(self, query_interface):
-        """тест: строковый запрос на апдейт данных в таблице типов приборов"""
-
-        raw_set_data = {TableRow("type_title"): RowValue("beam")}
-        raw_where_data = {TableRow("type_id"): RowValue("1")}
-
-        assert (
-            query_interface.query_update(
-                raw_set_data=raw_set_data, raw_where_data=raw_where_data
-            )
-            == "UPDATE device_type SET type_title='beam' WHERE type_id='1'"
+            query_connect.query_get_all()
+            == "SELECT stock_device_id, device_name, at_clean_date FROM stock_device as sd"
         )

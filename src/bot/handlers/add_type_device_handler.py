@@ -6,7 +6,7 @@ from aiogram.types import Message
 from aiogram.types import ReplyKeyboardRemove
 
 from src.bot.keyboard.keyboard_start import kb_start
-from src.run_bot import DBotAPI
+from src.bot_api import APIBotDb
 
 logging.basicConfig(
     level=logging.WARNING,
@@ -25,7 +25,7 @@ class AddDeviceType(StatesGroup):
     description_type = State()
 
 
-db_bot_api = DBotAPI()
+db_bot_api = APIBotDb()
 
 
 @device_type_router.message(F.text == "/add_device_type")
@@ -45,12 +45,11 @@ async def add_description_type(message: Message, state: FSMContext):
 
 @device_type_router.message(AddDeviceType.description_type)
 async def add_device_type(message: Message, state: FSMContext):
-    await state.update_data(description_type=message.text)
-
+    await state.update_data(type_description=message.text)
     data = await state.get_data()
 
     try:
-        db_bot_api.save_device_type_from_bot_into_db(data)
+        db_bot_api.bot_set_device_type(data)
 
         await message.answer(
             text=f"Данные записаны {data}. Возврат в главное меню",
@@ -64,4 +63,5 @@ async def add_device_type(message: Message, state: FSMContext):
             reply_markup=kb_start,
         )
 
-    await state.clear()
+    finally:
+        await state.clear()

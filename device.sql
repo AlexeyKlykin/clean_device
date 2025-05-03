@@ -4,4 +4,5 @@ INSERT INTO device (device_name,company_id,type_device_id) VALUES
 	 ('Prima Mythos',1,4),
 	 ('Laser Beam',2,1),
 	 ('7x40',2,1),
-	 ('Arolla',1,2);
+	 ('Arolla',1,2),
+	 ('Scenius unico',1,4);

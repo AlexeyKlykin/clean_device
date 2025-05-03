@@ -16,7 +16,7 @@ logger.addHandler(logging.StreamHandler())
 CREATE_TABLE_DEVICE_COMPANY = """CREATE TABLE IF NOT EXISTS device_company
     (company_id integer primary key AUTOINCREMENT,
     company_name text not null unique,
-    producer_country text not null unique,
+    producer_country text not null,
     description_company text)
 """
 
@@ -39,7 +39,7 @@ CREATE_TABLE_STOCK_DEVICE = """CREATE TABLE IF NOT EXISTS stock_device
     (id integer primary key AUTOINCREMENT,
     stock_device_id integer,
     at_clean_date text not null,
-    stock_device_status BOOLEAN DEFAULT 1,
+    stock_device_status BOOLEAN DEFAULT 0,
     device_id integer,
     foreign key(device_id) references device(device_id))
 """
@@ -96,17 +96,8 @@ class DBSqlite:
         self.db_name = db_name
 
     def __enter__(self):
-        create_table_list = [
-            CREATE_TABLE_STOCK_DEVICE,
-            CREATE_TABLE_DEVICE,
-            CREATE_TABLE_DEVICE_COMPANY,
-            CREATE_TABLE_DEVICE_TYPE,
-        ]
-
         try:
             self.conn = sqlite3.connect(self.db_name)
-            self.conn.autocommit = True
-            [self.conn.execute(item) for item in create_table_list]
             return self.conn
 
         except ConnectionError as err:

@@ -6,10 +6,11 @@ from aiogram.types import CallbackQuery, Message
 from aiogram.types import ReplyKeyboardRemove
 
 from src.bot.keyboard.keyboard_start import kb_start
-from src.run_bot import (
-    CompanyCallback,
-    DBotAPI,
+from src.bot_api import (
     DeviceTypeCallback,
+    DeviceCompanyCallback,
+    APIBotDb,
+    Marker,
 )
 
 logging.basicConfig(
@@ -23,7 +24,7 @@ logger.addHandler(logging.StreamHandler())
 
 device_router = Router()
 
-bot_api_db = DBotAPI()
+bot_api_db = APIBotDb()
 
 
 class AddDevice(StatesGroup):
@@ -45,15 +46,17 @@ async def device_name(message: Message, state: FSMContext):
     await state.update_data(device_name=message.text)
     await message.answer(
         text="Введите компанию производитель прибора",
-        reply_markup=bot_api_db.gen_inline_kb("company"),
+        reply_markup=bot_api_db.bot_inline_kb(Marker.DCOMPANY),
     )
 
 
 @device_router.callback_query(
-    CompanyCallback.filter(F.reaction_text.in_(bot_api_db.get_all_company()))
+    DeviceCompanyCallback.filter(
+        F.text_search.in_(bot_api_db.bot_keyboard_company_name_lst())
+    )
 )
 async def company_for_device(
-    callback: CallbackQuery, callback_data: CompanyCallback, state: FSMContext
+    callback: CallbackQuery, callback_data: DeviceCompanyCallback, state: FSMContext
 ):
     await callback.answer()
     device_data = await state.get_data()
@@ -64,7 +67,7 @@ async def company_for_device(
         if device_data["company_name"]:
             await callback.message.answer(
                 text="Выберите тип прибора",
-                reply_markup=bot_api_db.gen_inline_kb("device_type"),
+                reply_markup=bot_api_db.bot_inline_kb(Marker.DTYPE),
             )
 
         else:
@@ -75,15 +78,17 @@ async def company_for_device(
 
 
 @device_router.callback_query(
-    DeviceTypeCallback.filter(F.reaction_text.in_(bot_api_db.get_all_type()))
+    DeviceTypeCallback.filter(
+        F.text_search.in_(bot_api_db.bot_keyboard_device_type_lst())
+    )
 )
 async def type_for_device(
     callback: CallbackQuery, callback_data: DeviceTypeCallback, state: FSMContext
 ):
     await callback.answer()
     device_data = await state.get_data()
-    device_data["type_title"] = callback_data.device_type
-    bot_api_db.save_device_from_bot_into_db(device_data)
+    device_data["type_title"] = callback_data.type_title
+    bot_api_db.bot_set_device(device_data)
 
     if callback.message:
         await callback.message.answer(

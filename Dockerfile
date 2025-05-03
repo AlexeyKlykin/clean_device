@@ -18,4 +18,4 @@ WORKDIR /app
 
 RUN uv sync --locked
 
-CMD ["/root/.local/bin/uv", "run", "main.py"]
+CMD ["/bin/bash", "app/start.sh"]

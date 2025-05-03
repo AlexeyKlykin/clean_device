@@ -6,7 +6,7 @@ from aiogram.types import Message
 from aiogram.types import ReplyKeyboardRemove
 
 from src.bot.keyboard.keyboard_start import kb_start
-from src.run_bot import DBotAPI
+from src.bot_api import APIBotDb
 
 logging.basicConfig(
     level=logging.WARNING,
@@ -26,7 +26,7 @@ class AddDeviceCompany(StatesGroup):
     description_company = State()
 
 
-db_bot_api = DBotAPI()
+db_bot_api = APIBotDb()
 
 
 @device_company_router.message(F.text == "/add_device_company")
@@ -54,15 +54,15 @@ async def add_description_company(message: Message, state: FSMContext):
 @device_company_router.message(AddDeviceCompany.description_company)
 async def add_device_company(message: Message, state: FSMContext):
     await state.update_data(description_company=message.text)
-
     data = await state.get_data()
 
     try:
-        db_bot_api.save_company_from_bot_into_db(data)
+        db_bot_api.bot_set_device_company(data)
         await message.answer(f"Данные {data} записаны", reply_markup=kb_start)
 
     except Exception as err:
         logger.warning(err)
         await message.answer(f"Данные {data} не записаны", reply_markup=kb_start)
 
-    await state.clear()
+    finally:
+        await state.clear()

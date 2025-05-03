@@ -1,193 +1,82 @@
 from pytest import fixture
-from src.data_resolve_interface import InterfaceConnectDB
-from src.db_app import DBSqlite
-
+from src.db_app import (
+    CREATE_TABLE_DEVICE,
+    CREATE_TABLE_DEVICE_COMPANY,
+    CREATE_TABLE_DEVICE_TYPE,
+    CREATE_TABLE_STOCK_DEVICE,
+    DBSqlite,
+)
 from src.query_interface import QueryInterface
-from src.run_bot import DBotAPI
-from src.schema_for_validate import (
+from src.schema_for_validation import (
     DeviceCompanyTable,
     DeviceTable,
     DeviceTypeTable,
+    OutputDeviceCompanyTable,
+    OutputDeviceTable,
+    OutputDeviceTypeTable,
+    RowValue,
+    StockBrokenDeviceData,
     StockDeviceTable,
-    company_factory,
-    device_factory,
-    device_type_factory,
-    stock_device_factory,
+    TableRow,
 )
-from src.secret import secrets
 
 table_list = ["device", "device_type", "device_company", "stock_device"]
 
-
-@fixture
-def bot_api():
-    db_name = secrets["DB_TEST"]
-    bot = DBotAPI()
-    if db_name:
-        bot.db_name = db_name
-        yield bot
+all_tables = (
+    StockDeviceTable,
+    DeviceTypeTable,
+    DeviceTable,
+    DeviceCompanyTable,
+    OutputDeviceCompanyTable,
+    OutputDeviceTable,
+    OutputDeviceTypeTable,
+    StockBrokenDeviceData,
+)
 
 
 @fixture
 def db_connect():
+    fp_lst = [
+        "stock_device_test.sql",
+        "device_test.sql",
+        "device_company_test.sql",
+        "device_type_test.sql",
+    ]
+
+    create_table_list = [
+        CREATE_TABLE_STOCK_DEVICE,
+        CREATE_TABLE_DEVICE,
+        CREATE_TABLE_DEVICE_COMPANY,
+        CREATE_TABLE_DEVICE_TYPE,
+    ]
+
     with DBSqlite("clean_device_test.db") as conn:
+        [conn.execute(item) for item in create_table_list]
+        conn.commit()
+
+        for fp in fp_lst:
+            with open(fp, "r") as file:
+                conn.executescript(file.read())
+        conn.commit()
+
         yield conn
-        for table in table_list:
-            conn.execute(
-                "UPDATE `sqlite_sequence` SET `seq` = 0 WHERE `name` = '%s'" % table
-            )
-            conn.execute("DELETE FROM '%s'" % table)
-
-
-@fixture
-def company_connect():
-    with DBSqlite("clean_device_test.db") as conn:
-        interface = InterfaceConnectDB(
-            conn,
-            row_factory=company_factory,
-            query=QueryInterface(table=DeviceCompanyTable),
-        )
-        set_data = [
-            ("Clay Paky", "Itali", "https://www.claypaky.it/"),
-            (
-                "Light Craft",
-                "Russia",
-                "https://light-craft.ru/",
-            ),
-        ]
-        interface.set_many_data(set_data)
-
-        yield interface
-
-        conn.execute(
-            "UPDATE `sqlite_sequence` SET `seq` = 0 WHERE `name` = '%s'"
-            % "device_company"
-        )
-        conn.execute("DELETE FROM '%s'" % "device_company")
-
-
-@fixture
-def type_connect():
-    with DBSqlite("clean_device_test.db") as conn:
-        interface = InterfaceConnectDB(
-            conn,
-            row_factory=device_type_factory,
-            query=QueryInterface(table=DeviceTypeTable),
-        )
-        set_data = [
-            ("beam", "Light device not spot"),
-            ("spot", "light device not beam"),
-        ]
-        interface.set_many_data(set_data)
-
-        yield interface
-
-        conn.execute(
-            "UPDATE `sqlite_sequence` SET `seq` = 0 WHERE `name` = '%s'" % "device_type"
-        )
-        conn.execute("DELETE FROM '%s'" % "device_type")
-
-
-@fixture
-def stock_device_connect():
-    type_device_data = [
-        ("beam", "Light device not spot"),
-        ("spot", "light device not beam"),
-    ]
-    company_device = [
-        ("Clay Paky", "Itali", "https://www.claypaky.it/"),
-        (
-            "Light Craft",
-            "Russia",
-            "https://light-craft.ru/",
-        ),
-    ]
-    data_device = [("k20", 1, 1), ("laser beam", 2, 1)]
-
-    stock_device = [("25", "1", "2025-04-19"), ("35", "2", "2025-04-29")]
-
-    with DBSqlite("clean_device_test.db") as conn:
-        company_interface = InterfaceConnectDB(
-            conn,
-            row_factory=company_factory,
-            query=QueryInterface(table=DeviceCompanyTable),
-        )
-        company_interface.set_many_data(company_device)
-
-        type_interface = InterfaceConnectDB(
-            conn,
-            row_factory=device_type_factory,
-            query=QueryInterface(table=DeviceTypeTable),
-        )
-        type_interface.set_many_data(type_device_data)
-
-        device_input = InterfaceConnectDB(
-            conn, row_factory=device_factory, query=QueryInterface(table=DeviceTable)
-        )
-        device_input.set_many_data(data_device)
-
-        stock_devices = InterfaceConnectDB(
-            conn,
-            row_factory=stock_device_factory,
-            query=QueryInterface(table=StockDeviceTable),
-        )
-        stock_devices.set_many_data(stock_device)
-
-        yield stock_devices
 
         for table in table_list:
             conn.execute(
                 "UPDATE `sqlite_sequence` SET `seq` = 0 WHERE `name` = '%s'" % table
             )
             conn.execute("DELETE FROM '%s'" % table)
+            conn.commit()
 
 
 @fixture
-def device_connect():
-    type_device_data = [
-        ("beam", "Light device not spot"),
-        ("spot", "light device not beam"),
-    ]
-    company_device = [
-        ("Clay Paky", "Itali", "https://www.claypaky.it/"),
-        (
-            "Light Craft",
-            "Russia",
-            "https://light-craft.ru/",
-        ),
-    ]
-    data_device = [("k20", 1, 1), ("laser beam", 2, 1)]
-
-    with DBSqlite("clean_device_test.db") as conn:
-        company_interface = InterfaceConnectDB(
-            conn,
-            row_factory=company_factory,
-            query=QueryInterface(table=DeviceCompanyTable),
-        )
-        company_interface.set_many_data(company_device)
-
-        type_interface = InterfaceConnectDB(
-            conn,
-            row_factory=device_type_factory,
-            query=QueryInterface(table=DeviceTypeTable),
-        )
-        type_interface.set_many_data(type_device_data)
-
-        device_input = InterfaceConnectDB(
-            conn, row_factory=device_factory, query=QueryInterface(table=DeviceTable)
-        )
-        device_input.set_many_data(data_device)
-
-        yield device_input
-
-        for table in table_list:
-            conn.execute(
-                "UPDATE `sqlite_sequence` SET `seq` = 0 WHERE `name` = '%s'" % table
-            )
-            conn.execute("DELETE FROM '%s'" % table)
+def query_connect():
+    qi = QueryInterface()
+    qi.table = StockBrokenDeviceData
+    return qi
 
 
 @fixture
-def query_interface():
-    tdqi = QueryInterface(DeviceTypeTable)
-    yield tdqi
+def data_from_query_connect():
+    data_one = {TableRow("at_clean_date"): RowValue("30-4-2025")}
+    return data_one

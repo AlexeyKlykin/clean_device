@@ -13,3 +13,11 @@ dependencies = [
 dev = [
     "pytest>=8.3.5",
 ]
+
+[tool.pytest.ini_options]
+markers = [
+    "query: тесты текстовых запросов", 
+    "db_table: тесты для запросов к таблицам базы данных", 
+    "api_bot: тесты api связи бота с дб"
+]
+
