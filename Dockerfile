@@ -18,4 +18,4 @@ WORKDIR /app
 
 RUN uv sync --locked
 
-CMD ["/bin/bash", "app/start.sh"]
+CMD ["./start.sh"]
