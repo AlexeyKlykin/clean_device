@@ -117,8 +117,6 @@ async def mark_device(
             )
 
         elif device_data["mark"] == "1" and not result_job:
-            bot_api_db.bot_change_device_status(device_data)
-
             await callback.message.answer(
                 text="<b>Прибор выведен из ремонта</b>", reply_markup=kb_start
             )
