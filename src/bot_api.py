@@ -302,23 +302,7 @@ class APIBotDb(AbstractAPIBotDb):
                 interface.schema = StockBrokenDeviceData
 
                 match where_data:
-                    case {"at_clean_date": str(at_clean_date)}:
-                        where_mogrif_data = {
-                            TableRow("sd.at_clean_date"): RowValue(at_clean_date),
-                        }
-
-                        stock_device = interface.get_items(where_data=where_mogrif_data)
-                        try:
-                            return [
-                                item
-                                for item in stock_device
-                                if isinstance(item, StockBrokenDeviceData)
-                            ]
-
-                        except AttributeError:
-                            return f"Не найдено не одного прибора в ремонте за эту дату {at_clean_date}"
-
-                    case _:
+                    case {"at_clean_date": "0"}:
                         date = modificate_date_to_str()
                         where_mogrif_data = {
                             TableRow("sd.at_clean_date"): RowValue(date),
@@ -334,6 +318,25 @@ class APIBotDb(AbstractAPIBotDb):
 
                         except AttributeError:
                             return f"Не найден не один прибор за эту дату {date}"
+
+                    case {"at_clean_date": str(at_clean_date)}:
+                        where_mogrif_data = {
+                            TableRow("sd.at_clean_date"): RowValue(at_clean_date),
+                        }
+                        stock_device = interface.get_items(where_data=where_mogrif_data)
+
+                        try:
+                            return [
+                                item
+                                for item in stock_device
+                                if isinstance(item, StockBrokenDeviceData)
+                            ]
+
+                        except AttributeError:
+                            return f"Не найдено не одного прибора в ремонте за эту дату {at_clean_date}"
+
+                    case _:
+                        return "Нет приборов на обработку"
         else:
             raise Exception("Не верно указана база данных")
 

@@ -39,7 +39,10 @@ class BrokenDevices(StatesGroup):
 
 @get_stock_device_router.message(F.text == "/get_broken_device")
 async def start_get_broken_device(message: Message, state: FSMContext):
-    await message.answer(text="<i>Введите дату а формате d-m-yyyy</i>")
+    await message.answer(
+        text="""Введите дату а формате <b>d-m-yyyy</b>. 
+Или введите <b>0</b> чтобы вывести приборы за текущую дату"""
+    )
     await state.set_state(BrokenDevices.clean_date)
 
 
