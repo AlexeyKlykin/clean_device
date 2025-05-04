@@ -46,6 +46,17 @@ logger.addHandler(logging.StreamHandler())
 class TokenError(Exception): ...
 
 
+class APIBotDbException(Exception):
+    def __init__(self, *args):
+        if args:
+            self.message = args[0]
+        else:
+            self.message = None
+
+    def __str__(self):
+        return "APIBotDbException, {0}".format(self.message)
+
+
 class Marker(StrEnum):
     DCOMPANY = "device_company"
     DTYPE = "device_type"
@@ -212,7 +223,7 @@ class APIBotDb(AbstractAPIBotDb):
                             return f"Прибор с id {stock_device_id} и названием {device_name} не найден в базе"
 
                 else:
-                    raise Exception("Не верно указана база данных")
+                    raise APIBotDbException("Не верно указана база данных")
 
             case _:
                 return f"Данные {where_data} не прошли валидацию"
@@ -235,10 +246,10 @@ class APIBotDb(AbstractAPIBotDb):
                         return f"Прибор с названием {device_name} не найден в базе"
 
             else:
-                raise Exception("Не верно указана база данных")
+                raise APIBotDbException("Не верно указана база данных")
 
         else:
-            raise Exception("Не переданы аргументы")
+            raise APIBotDbException("Не переданы аргументы")
 
     def bot_company(self, company_name: str) -> Dict[str, str] | str:
         """метод для получения данных о компании производителе"""
@@ -258,10 +269,10 @@ class APIBotDb(AbstractAPIBotDb):
                         return f"Компания с названием {company_name} не найден в базе"
 
             else:
-                raise Exception("Не верно указана база данных")
+                raise APIBotDbException("Не верно указана база данных")
 
         else:
-            raise Exception("Не переданы аргументы")
+            raise APIBotDbException("Не переданы аргументы")
 
     def bot_device_type(self, type_title: str) -> Dict[str, str] | str:
         """метод для получения данных о типе прибора"""
@@ -281,10 +292,10 @@ class APIBotDb(AbstractAPIBotDb):
                         return f"Тип прибор с названием {type_title} не найден в базе"
 
             else:
-                raise Exception("Не верно указана база данных")
+                raise APIBotDbException("Не верно указана база данных")
 
         else:
-            raise Exception("Не переданы аргументы")
+            raise APIBotDbException("Не переданы аргументы")
 
     def bot_lst_broken_device_from_stockpile(
         self, where_data: Dict[str, str] | None = None
@@ -332,7 +343,7 @@ class APIBotDb(AbstractAPIBotDb):
                     case _:
                         return "Нет приборов на обработку"
         else:
-            raise Exception("Не верно указана база данных")
+            raise APIBotDbException("Не верно указана база данных")
 
     def bot_lst_device(self) -> List[OutputDeviceTable] | str:
         """метод для получения всего списка приборов"""
@@ -351,7 +362,7 @@ class APIBotDb(AbstractAPIBotDb):
                     return "Не найдены приборы"
 
         else:
-            raise Exception("Не верно указана база данных")
+            raise APIBotDbException("Не верно указана база данных")
 
     def bot_lst_company(self) -> List[OutputDeviceCompanyTable] | str:
         """метод для получения всех компаний производителей"""
@@ -372,7 +383,7 @@ class APIBotDb(AbstractAPIBotDb):
                     return "Не найден прибор"
 
         else:
-            raise Exception("Не верно указана база данных")
+            raise APIBotDbException("Не верно указана база данных")
 
     def bot_lst_device_type(self) -> List[OutputDeviceTypeTable]:
         """метод получения всех типов приборов"""
@@ -388,7 +399,7 @@ class APIBotDb(AbstractAPIBotDb):
                 ]
 
         else:
-            raise Exception("Не верно указана база данных")
+            raise APIBotDbException("Не верно указана база данных")
 
     def bot_device_id(self, device_name: str | None) -> str:
         """метод для получения id прибора"""
@@ -408,10 +419,10 @@ class APIBotDb(AbstractAPIBotDb):
                         return f"В списке приборов по имени {device_name} не чего не нашлось"
 
             else:
-                raise Exception("Не верно указана база данных")
+                raise APIBotDbException("Не верно указана база данных")
 
         else:
-            raise Exception("Не переданы аргументы")
+            raise APIBotDbException("Не переданы аргументы")
 
     def bot_company_id(self, company_name: str | None) -> str:
         """метод для получения id компании производителя"""
@@ -430,10 +441,10 @@ class APIBotDb(AbstractAPIBotDb):
                         return f"В списке компаний по имени {company_name} не чего не найдено"
 
             else:
-                raise Exception("Не верно указана база данных")
+                raise APIBotDbException("Не верно указана база данных")
 
         else:
-            raise Exception("Не переданы аргументы")
+            raise APIBotDbException("Не переданы аргументы")
 
     def bot_type_id(self, type_title: str | None) -> str:
         """метод для получения всех типов приборов по названию типа"""
@@ -452,10 +463,10 @@ class APIBotDb(AbstractAPIBotDb):
                         return f"В списке типов по названию {type_title} не чего не найдено"
 
             else:
-                raise Exception("Не верно указана база данных")
+                raise APIBotDbException("Не верно указана база данных")
 
         else:
-            raise Exception("Не переданы аргументы")
+            raise APIBotDbException("Не переданы аргументы")
 
     def bot_check_device_from_stockpile(self, where_data: Dict[str, str]) -> bool:
         """метод проверки наличия прибора на складе"""
@@ -480,10 +491,10 @@ class APIBotDb(AbstractAPIBotDb):
                             check = True
 
                 else:
-                    raise Exception("Не верно указана база данных")
+                    raise APIBotDbException("Не верно указана база данных")
 
             case _:
-                raise Exception(f"Данные {where_data} не прошли валидацию")
+                raise APIBotDbException(f"Данные {where_data} не прошли валидацию")
 
         return check
 
@@ -504,10 +515,10 @@ class APIBotDb(AbstractAPIBotDb):
                         check = True
 
             else:
-                raise Exception("Не верно указана база данных")
+                raise APIBotDbException("Не верно указана база данных")
 
         else:
-            raise Exception("Не переданы аргументы")
+            raise APIBotDbException("Не переданы аргументы")
 
         return check
 
@@ -528,10 +539,10 @@ class APIBotDb(AbstractAPIBotDb):
                         return False
 
             else:
-                raise Exception("Не верно указана база данных")
+                raise APIBotDbException("Не верно указана база данных")
 
         else:
-            raise Exception("Не переданы аргументы")
+            raise APIBotDbException("Не переданы аргументы")
 
     def bot_check_type(self, type_title: str | None) -> bool:
         """метод проверки наличия типа устройства в списке"""
@@ -550,10 +561,10 @@ class APIBotDb(AbstractAPIBotDb):
                         return False
 
             else:
-                raise Exception("Не верно указана база данных")
+                raise APIBotDbException("Не верно указана база данных")
 
         else:
-            raise Exception("Не переданы аргументы")
+            raise APIBotDbException("Не переданы аргументы")
 
     def bot_change_device_status(self, where_data: Dict[str, str]) -> str | None:
         """метод смены статуса прибора"""
@@ -643,7 +654,7 @@ class APIBotDb(AbstractAPIBotDb):
                         return f"Переданные данные {where_data} не прошли валидацию"
 
         else:
-            raise Exception("Не верно указана база данных")
+            raise APIBotDbException("Не верно указана база данных")
 
     def bot_set_device_from_stockpile_by_name_and_id_to_db(
         self, set_data: Dict[str, str]
@@ -670,7 +681,7 @@ class APIBotDb(AbstractAPIBotDb):
                             return f"Прибор с именем {device_name} с id {stock_device_id} добавлен в базу данных"
 
                     else:
-                        raise Exception("Не верно указана база данных")
+                        raise APIBotDbException("Не верно указана база данных")
 
                 else:
                     return (
@@ -697,7 +708,7 @@ class APIBotDb(AbstractAPIBotDb):
                         return f"Тип прибора с названием {type_title} добавлен в бд"
 
                 else:
-                    raise Exception("Не верно указана база данных")
+                    raise APIBotDbException("Не верно указана база данных")
 
             case _:
                 return f"Данные - {set_data} не прошли валидацию"
@@ -720,7 +731,7 @@ class APIBotDb(AbstractAPIBotDb):
                         return f"Компания с названием {company_name} добавлена в базу"
 
                 else:
-                    raise Exception("Не верно указана база данных")
+                    raise APIBotDbException("Не верно указана база данных")
 
             case _:
                 return f"Данные - {set_data} не прошли валидацию"
@@ -745,7 +756,7 @@ class APIBotDb(AbstractAPIBotDb):
                         return f"Прибор с именем {device_name} добавлен в базу"
 
                 else:
-                    raise Exception("Не верно указана база данных")
+                    raise APIBotDbException("Не верно указана база данных")
 
             case _:
                 return f"Данные - {set_data} не прошли валидацию"
@@ -796,7 +807,7 @@ class APIBotDb(AbstractAPIBotDb):
                         return f"Данные - {set_data} не прошли валидацию"
 
         else:
-            raise Exception("Не верно указана база данных")
+            raise APIBotDbException("Не верно указана база данных")
 
     def bot_keyboard_company_name_lst(self) -> List[str] | str:
         if self.db_name:
@@ -816,7 +827,7 @@ class APIBotDb(AbstractAPIBotDb):
                     return "/add_company"
 
         else:
-            raise Exception("Не верно указана база данных")
+            raise APIBotDbException("Не верно указана база данных")
 
     def bot_keyboard_device_type_lst(self) -> List[str] | str:
         if self.db_name:
@@ -835,7 +846,7 @@ class APIBotDb(AbstractAPIBotDb):
                     return "/add_device_type"
 
         else:
-            raise Exception("Не верно указана база данных")
+            raise APIBotDbException("Не верно указана база данных")
 
     def bot_keyboard_device_lst(self) -> List[str] | str:
         if self.db_name:
@@ -855,7 +866,7 @@ class APIBotDb(AbstractAPIBotDb):
                     return "/add_device"
 
         else:
-            raise Exception("Не верно указана база данных")
+            raise APIBotDbException("Не верно указана база данных")
 
     def bot_inline_kb(self, marker: Marker) -> InlineKeyboardMarkup:
         kb_builder = InlineKeyboardBuilder()

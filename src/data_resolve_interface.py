@@ -20,6 +20,25 @@ logger = logging.getLogger(__name__)
 logger.addHandler(logging.StreamHandler())
 
 
+class DataResolveInterfaceException(Exception):
+    def __init__(self, *args):
+        if args:
+            self.message = args[0]
+            self.value = args[1]
+        else:
+            self.message = None
+            self.value = None
+
+    def __str__(self):
+        logger.warning(DataResolveInterfaceException)
+        if self.message:
+            return "DataResolveInterfaceException, {0} {1}".format(
+                self.message, self.value
+            )
+        else:
+            return "DataResolveInterfaceException вызвана для класса обработки данных"
+
+
 class AbstractDatabaseTableHandlerInterface(ABC):
     @abstractmethod
     def set_item(self, set_data: tuple): ...
@@ -69,15 +88,15 @@ class DatabaseTableHandlerInterface(AbstractDatabaseTableHandlerInterface):
             if self.conn:
                 self.conn.close()
 
-        except Exception:
-            raise Exception(exc_type, exc_val, exc_tb)
+        except DataResolveInterfaceException:
+            raise DataResolveInterfaceException(exc_type, exc_val, exc_tb)
 
     @property
     def schema(self):
         if self._schema:
             return self._schema
         else:
-            raise Exception("Не передана схема")
+            raise DataResolveInterfaceException("Не передана схема")
 
     @schema.setter
     def schema(self, schema: Type[AbstractTable]):
@@ -114,7 +133,7 @@ class DatabaseTableHandlerInterface(AbstractDatabaseTableHandlerInterface):
             cursor.execute(query, set_data)
             self.conn.commit()
 
-        except Exception as err:
+        except sqlite3.OperationalError as err:
             self.conn.rollback()
             raise err
 
@@ -129,7 +148,7 @@ class DatabaseTableHandlerInterface(AbstractDatabaseTableHandlerInterface):
             cursor.executemany(query, set_data_lst)
             self.conn.commit()
 
-        except Exception as err:
+        except sqlite3.OperationalError as err:
             self.conn.rollback()
             raise err
 
@@ -166,7 +185,7 @@ class DatabaseTableHandlerInterface(AbstractDatabaseTableHandlerInterface):
             logger.warning("Скорее всего вернулость пустое значение")
             raise err
 
-        except Exception as err:
+        except DataResolveInterfaceException as err:
             raise err
 
         finally:
@@ -212,7 +231,7 @@ class DatabaseTableHandlerInterface(AbstractDatabaseTableHandlerInterface):
             logger.warning("Скорее всего вернулось пустое значение")
             raise err
 
-        except Exception as err:
+        except DataResolveInterfaceException as err:
             raise err
 
         finally:
@@ -226,7 +245,7 @@ class DatabaseTableHandlerInterface(AbstractDatabaseTableHandlerInterface):
             cursor.execute(query)
             self.conn.commit()
 
-        except Exception as err:
+        except sqlite3.OperationalError as err:
             self.conn.rollback()
             raise err
 

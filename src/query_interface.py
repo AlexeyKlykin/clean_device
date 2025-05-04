@@ -18,6 +18,23 @@ logger = logging.getLogger(__name__)
 logger.addHandler(logging.StreamHandler())
 
 
+class QueryException(Exception):
+    def __init__(self, *args):
+        if args:
+            self.message = args[0]
+            self.value = args[1]
+        else:
+            self.message = None
+            self.value = None
+
+    def __str__(self):
+        logger.warning(QueryException)
+        if self.message:
+            return "QueryException, {0} {1}".format(self.message, self.value)
+        else:
+            return "QueryException вызвана для класса запросов"
+
+
 ## Формирование запросов
 class AbstractInterfaceQuery(ABC):
     @property
@@ -95,7 +112,7 @@ class QueryInterface(AbstractInterfaceQuery):
         if self._table:
             return self._table
         else:
-            raise Exception("Не передана схема таблицы")
+            raise QueryException("Не передана схема таблицы", self.table)
 
     @table.setter
     def table(self, table: Type[AbstractTable]):
