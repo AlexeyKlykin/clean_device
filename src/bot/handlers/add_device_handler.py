@@ -5,7 +5,7 @@ from aiogram.fsm.context import FSMContext
 from aiogram.types import CallbackQuery, Message
 from aiogram.types import ReplyKeyboardRemove
 
-from src.bot.keyboard.keyboard_start import kb_start
+from src.bot.keyboard.keyboard_start import kb_start, kb_add
 from src.bot_api import (
     DeviceTypeCallback,
     DeviceCompanyCallback,
@@ -66,18 +66,10 @@ async def company_for_device(
     await state.set_data(device_data)
 
     if callback.message:
-        if device_data["company_name"]:
-            await callback.message.answer(
-                text="<i>Выберите тип прибора</i>",
-                reply_markup=bot_api_db.bot_inline_kb(Marker.DTYPE),
-            )
-
-        else:
-            await callback.message.answer(
-                text="<i>Сообщение не получено возврат к главному меню</i>",
-                reply_markup=kb_start,
-            )
-            await state.clear()
+        await callback.message.answer(
+            text="<i>Выберите тип прибора</i>",
+            reply_markup=bot_api_db.bot_inline_kb(Marker.DTYPE),
+        )
 
 
 @device_router.callback_query(
@@ -92,10 +84,16 @@ async def type_for_device(
     result_job = bot_api_db.bot_set_device(device_data)
 
     if callback.message:
-        await callback.message.answer(
-            text=f"<code>{result_job}</code>",
-            reply_markup=kb_start,
-        )
+        if device_data["type_title"]:
+            await callback.message.answer(
+                text=f"<code>{result_job}</code>",
+                reply_markup=kb_start,
+            )
+
+        else:
+            await callback.message.answer(
+                text=f"<i>{result_job}</i>", reply_markup=kb_add
+            )
 
     await state.clear()
 

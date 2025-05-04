@@ -674,8 +674,10 @@ class APIBotDb(AbstractAPIBotDb):
             }:
                 date = modificate_date_to_str()
                 device_id = self.bot_device_id(device_name)
+
                 if device_id:
                     item = (stock_device_id, device_id, date)
+
                     if self.db_name:
                         with DBSqlite(self.db_name) as conn:
                             interface = DatabaseTableHandlerInterface(conn)
@@ -703,6 +705,7 @@ class APIBotDb(AbstractAPIBotDb):
                 "type_description": str(type_description),
             }:
                 item = (type_title, type_description)
+
                 if self.db_name:
                     with DBSqlite(self.db_name) as conn:
                         interface = DatabaseTableHandlerInterface(conn)
@@ -726,6 +729,7 @@ class APIBotDb(AbstractAPIBotDb):
                 "description_company": str(description_company),
             }:
                 item = (company_name, producer_coutry, description_company)
+
                 if self.db_name:
                     with DBSqlite(self.db_name) as conn:
                         interface = DatabaseTableHandlerInterface(conn)
@@ -779,6 +783,7 @@ class APIBotDb(AbstractAPIBotDb):
                         "device_name": str(device_name),
                     }:
                         device_id = self.bot_device_id(device_name)
+
                         if device_id:
                             where_data = {
                                 TableRow("stock_device_id"): RowValue(stock_device_id),
@@ -805,11 +810,9 @@ class APIBotDb(AbstractAPIBotDb):
                                 )
                                 return f"Данные прибора - {device_name} обновлены"
                         else:
-                            logger.warning(f"Прибор {device_name} не найден")
                             return f"Прибор {device_name} не найден"
 
                     case _:
-                        logger.warning(f"Данные - {set_data} не прошли валидацию")
                         return f"Данные - {set_data} не прошли валидацию"
 
         else:

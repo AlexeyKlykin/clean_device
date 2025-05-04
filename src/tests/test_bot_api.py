@@ -5,6 +5,7 @@ from src.schema_for_validation import (
     OutputDeviceTable,
     StockBrokenDeviceData,
 )
+from src.utils import modificate_date_to_str
 
 
 @mark.usefixtures("db_connect")
@@ -234,11 +235,13 @@ class TestAPIBotDb:
         where_data = {"stock_device_id": "1", "device_name": "Laser Beam", "mark": "0"}
         api.bot_change_device_status(where_data)
 
-        res = api.bot_lst_broken_device_from_stockpile()
+        res = api.bot_lst_broken_device_from_stockpile({"at_clean_date": "0"})
 
         assert res == [
             StockBrokenDeviceData(
-                stock_device_id=1, device_name="Laser Beam", at_clean_date="3-5-2025"
+                stock_device_id=1,
+                device_name="Laser Beam",
+                at_clean_date=modificate_date_to_str(),
             ),
         ]
 
