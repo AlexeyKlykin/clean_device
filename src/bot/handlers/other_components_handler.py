@@ -77,7 +77,7 @@ async def get_device_types(message: Message):
             text="\n".join(
                 [
                     f"""Название типа прибора: <code>{item.type_title}</code>
-Описание типа прибора: <code>{item.type_description:.150}</code>"""
+Описание типа прибора: <code>{item.type_description:.150}</code>\n"""
                     for item in device_types
                     if isinstance(item, OutputDeviceTypeTable)
                 ]

@@ -58,7 +58,7 @@ async def get_broken_device(message: Message, state: FSMContext):
                 [
                     f"""ID прибора: <code>{item.stock_device_id}</code>
 Название прибора: <code>{item.device_name}</code>
-Дата очистки: <code>{item.at_clean_date}</code>"""
+Дата очистки: <code>{item.at_clean_date}</code>\n"""
                     for item in devices
                     if isinstance(item, StockBrokenDeviceData)
                 ]
@@ -162,7 +162,7 @@ async def show_the_devices_found(
 Название прибора: <code>{stock_device["device_name"]}</code>
 Компания производитель прибора: <code>{stock_device["company_name"]}</code>
 Тип прибора: <code>{stock_device["type_title"]}</code>
-Дата последней очистки: <code>{stock_device["at_clean_date"]}</code>""",
+Дата последней очистки: <code>{stock_device["at_clean_date"]}</code>\n""",
                 reply_markup=kb_start,
             )
 
