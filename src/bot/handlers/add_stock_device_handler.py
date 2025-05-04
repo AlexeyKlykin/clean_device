@@ -27,27 +27,30 @@ class AddStockDevice(StatesGroup):
 
 bot_api_db = APIBotDb()
 
+devices_cache = set()
+
 
 @stock_device_router.message(F.text == "/add_stock_device")
 async def add_stock_device_id(message: Message, state: FSMContext):
     await message.answer(
-        text="Введите номер прибора на складе",
+        text="<i>Введите номер прибора на складе</i>",
         reply_markup=ReplyKeyboardRemove(),
     )
     await state.set_state(AddStockDevice.stock_device_id)
+    devices_cache.update(bot_api_db.bot_keyboard_device_lst())
 
 
 @stock_device_router.message(AddStockDevice.stock_device_id)
 async def add_device_id_for_stock_device(message: Message, state: FSMContext):
     await state.update_data(stock_device_id=message.text)
     await message.answer(
-        text="Введите название прибора",
+        text="<i>Введите название прибора</i>",
         reply_markup=bot_api_db.bot_inline_kb(Marker.DEVICE),
     )
 
 
 @stock_device_router.callback_query(
-    DeviceCallback.filter(F.text_search.in_(bot_api_db.bot_keyboard_device_lst()))
+    DeviceCallback.filter(F.text_search.in_(devices_cache))
 )
 async def add_stock_device(
     callback: CallbackQuery, callback_data: DeviceCallback, state: FSMContext
@@ -57,25 +60,29 @@ async def add_stock_device(
     stock_device_data["device_name"] = callback_data.device_name
 
     if bot_api_db.bot_check_device_from_stockpile(stock_device_data):
-        bot_api_db.bot_update_devices_stock_clearence_date(stock_device_data)
+        result_job = bot_api_db.bot_update_devices_stock_clearence_date(
+            stock_device_data
+        )
         if callback.message:
             await callback.message.answer(
-                text=f"Данные прибора {stock_device_data} обновленны",
+                text=f"<b>{result_job}</b>",
                 reply_markup=kb_start,
             )
 
     elif bot_api_db.bot_check_device(stock_device_data["device_name"]):
-        bot_api_db.bot_set_device_from_stockpile_by_name_and_id_to_db(stock_device_data)
+        result_job = bot_api_db.bot_set_device_from_stockpile_by_name_and_id_to_db(
+            stock_device_data
+        )
         if callback.message:
             await callback.message.answer(
-                text=f"Данные прибора {stock_device_data} сохранены",
+                text=f"<code>{result_job}</code>",
                 reply_markup=kb_start,
             )
 
     else:
         if callback.message:
             await callback.message.answer(
-                text=f"В базе отсутствет запись {stock_device_data}",
+                text=f"В базе отсутствет запись <code>{stock_device_data}</code>",
                 reply_markup=kb_start,
             )
 
@@ -87,6 +94,6 @@ async def cancel_stock(callback: CallbackQuery, state: FSMContext):
     await callback.answer()
     if callback.message:
         await callback.message.answer(
-            text="Очистка всех запросов", reply_markup=kb_start
+            text="<i>Очистка всех запросов</i>", reply_markup=kb_start
         )
     await state.clear()

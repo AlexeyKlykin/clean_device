@@ -23,12 +23,29 @@ button_get = [
         KeyboardButton(text="/get_stock_device"),
         KeyboardButton(text="/get_broken_device"),
     ],
+    [
+        KeyboardButton(text="/get_devices"),
+        KeyboardButton(text="/get_companies"),
+        KeyboardButton(text="/get_types"),
+    ],
     [KeyboardButton(text="/mark_device")],
     [
         KeyboardButton(text="/cancel"),
     ],
 ]
 
-kb_start = ReplyKeyboardMarkup(keyboard=button_start)
-kb_add = ReplyKeyboardMarkup(keyboard=button_add)
-kb_get = ReplyKeyboardMarkup(keyboard=button_get)
+kb_start = ReplyKeyboardMarkup(
+    keyboard=button_start,
+    resize_keyboard=True,
+    input_field_placeholder="Можете воспользоваться меню",
+)
+kb_add = ReplyKeyboardMarkup(
+    keyboard=button_add,
+    resize_keyboard=True,
+    input_field_placeholder="Можете воспользоваться меню",
+)
+kb_get = ReplyKeyboardMarkup(
+    keyboard=button_get,
+    resize_keyboard=True,
+    input_field_placeholder="Можете воспользоваться меню",
+)

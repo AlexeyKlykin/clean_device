@@ -32,7 +32,7 @@ db_bot_api = APIBotDb()
 @device_company_router.message(F.text == "/add_device_company")
 async def add_device_company_name(message: Message, state: FSMContext):
     await message.answer(
-        "Введите название компании", reply_markup=ReplyKeyboardRemove()
+        "<i>Введите название компании</i>", reply_markup=ReplyKeyboardRemove()
     )
     await state.set_state(AddDeviceCompany.company_name)
 
@@ -40,14 +40,14 @@ async def add_device_company_name(message: Message, state: FSMContext):
 @device_company_router.message(AddDeviceCompany.company_name)
 async def add_producer_country(message: Message, state: FSMContext):
     await state.update_data(company_name=message.text)
-    await message.answer("Введите название страны производителя")
+    await message.answer("<i>Введите название страны производителя</i>")
     await state.set_state(AddDeviceCompany.producer_country)
 
 
 @device_company_router.message(AddDeviceCompany.producer_country)
 async def add_description_company(message: Message, state: FSMContext):
     await state.update_data(producer_country=message.text)
-    await message.answer("Введите описание или адрес сайта")
+    await message.answer("<i>Введите описание или адрес сайта</i>")
     await state.set_state(AddDeviceCompany.description_company)
 
 
@@ -55,14 +55,14 @@ async def add_description_company(message: Message, state: FSMContext):
 async def add_device_company(message: Message, state: FSMContext):
     await state.update_data(description_company=message.text)
     data = await state.get_data()
+    result_job = db_bot_api.bot_set_device_company(data)
 
     try:
-        db_bot_api.bot_set_device_company(data)
-        await message.answer(f"Данные {data} записаны", reply_markup=kb_start)
+        await message.answer(f"<b>{result_job}</b>", reply_markup=kb_start)
 
     except Exception as err:
         logger.warning(err)
-        await message.answer(f"Данные {data} не записаны", reply_markup=kb_start)
+        await message.answer(f"<code>{result_job}</code>", reply_markup=kb_start)
 
     finally:
         await state.clear()

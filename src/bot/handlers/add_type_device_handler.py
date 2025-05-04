@@ -31,7 +31,7 @@ db_bot_api = APIBotDb()
 @device_type_router.message(F.text == "/add_device_type")
 async def add_type_title(message: Message, state: FSMContext):
     await message.answer(
-        text="Введите название типа прибора", reply_markup=ReplyKeyboardRemove()
+        text="<i>Введите название типа прибора</i>", reply_markup=ReplyKeyboardRemove()
     )
     await state.set_state(AddDeviceType.type_title)
 
@@ -39,7 +39,7 @@ async def add_type_title(message: Message, state: FSMContext):
 @device_type_router.message(AddDeviceType.type_title)
 async def add_description_type(message: Message, state: FSMContext):
     await state.update_data(type_title=message.text)
-    await message.answer(text="Введите описание типа прибора")
+    await message.answer(text="<i>Введите описание типа прибора</i>")
     await state.set_state(AddDeviceType.description_type)
 
 
@@ -47,19 +47,18 @@ async def add_description_type(message: Message, state: FSMContext):
 async def add_device_type(message: Message, state: FSMContext):
     await state.update_data(type_description=message.text)
     data = await state.get_data()
+    result_job = db_bot_api.bot_set_device_type(data)
 
     try:
-        db_bot_api.bot_set_device_type(data)
-
         await message.answer(
-            text=f"Данные записаны {data}. Возврат в главное меню",
+            text=f"<b>{result_job}</b>",
             reply_markup=kb_start,
         )
 
     except Exception as err:
         logger.warning(err)
         await message.answer(
-            text=f"Данные {data} не записаны. Возврат в главное меню",
+            text=f"<code>{result_job}</code>",
             reply_markup=kb_start,
         )
 

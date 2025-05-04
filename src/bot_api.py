@@ -123,13 +123,13 @@ class AbstractAPIBotDb(ABC):
     ) -> List[StockBrokenDeviceData] | str: ...
 
     @abstractmethod
-    def bot_lst_device(self) -> List[Dict[str, str]] | str: ...
+    def bot_lst_device(self) -> List[OutputDeviceTable] | str: ...
 
     @abstractmethod
-    def bot_lst_company(self) -> List[Dict[str, str]] | str: ...
+    def bot_lst_company(self) -> List[OutputDeviceCompanyTable] | str: ...
 
     @abstractmethod
-    def bot_lst_device_type(self) -> List[Dict[str, str]]: ...
+    def bot_lst_device_type(self) -> List[OutputDeviceTypeTable]: ...
 
     @abstractmethod
     def bot_device_id(self, device_name: str | None) -> str: ...
@@ -337,7 +337,7 @@ class APIBotDb(AbstractAPIBotDb):
         else:
             raise Exception("Не верно указана база данных")
 
-    def bot_lst_device(self) -> List[Dict[str, str]] | str:
+    def bot_lst_device(self) -> List[OutputDeviceTable] | str:
         """метод для получения всего списка приборов"""
 
         if self.db_name:
@@ -347,7 +347,9 @@ class APIBotDb(AbstractAPIBotDb):
                 device = interface.get_items()
 
                 try:
-                    return [item.model_dump() for item in device]
+                    return [
+                        item for item in device if isinstance(item, OutputDeviceTable)
+                    ]
 
                 except AttributeError:
                     return "Не найдены приборы"
@@ -355,7 +357,7 @@ class APIBotDb(AbstractAPIBotDb):
         else:
             raise Exception("Не верно указана база данных")
 
-    def bot_lst_company(self) -> List[Dict[str, str]] | str:
+    def bot_lst_company(self) -> List[OutputDeviceCompanyTable] | str:
         """метод для получения всех компаний производителей"""
 
         if self.db_name:
@@ -365,7 +367,11 @@ class APIBotDb(AbstractAPIBotDb):
                 company = interface.get_items()
 
                 try:
-                    return [item.model_dump() for item in company]
+                    return [
+                        item
+                        for item in company
+                        if isinstance(item, OutputDeviceCompanyTable)
+                    ]
 
                 except AttributeError:
                     return "Не найден прибор"
@@ -373,7 +379,7 @@ class APIBotDb(AbstractAPIBotDb):
         else:
             raise Exception("Не верно указана база данных")
 
-    def bot_lst_device_type(self) -> List[Dict[str, str]]:
+    def bot_lst_device_type(self) -> List[OutputDeviceTypeTable]:
         """метод получения всех типов приборов"""
 
         if self.db_name:
@@ -381,7 +387,11 @@ class APIBotDb(AbstractAPIBotDb):
                 interface = DatabaseTableHandlerInterface(conn)
                 interface.schema = OutputDeviceTypeTable
                 device_type = interface.get_items()
-                return [item.model_dump() for item in device_type]
+                return [
+                    item
+                    for item in device_type
+                    if isinstance(item, OutputDeviceTypeTable)
+                ]
 
         else:
             raise Exception("Не верно указана база данных")
@@ -572,46 +582,76 @@ class APIBotDb(AbstractAPIBotDb):
                         "device_name": str(device_name),
                         "mark": "0" as mark,
                     }:
-                        device_id = self.bot_device_id(device_name)
-                        if device_id:
-                            set_data = {
-                                TableRow("stock_device_status"): RowValue(mark),
-                                TableRow("at_clean_date"): RowValue(
-                                    modificate_date_to_str()
-                                ),
-                            }
-                            where_mogrif_data = {
-                                TableRow("stock_device_id"): RowValue(stock_device_id),
-                                TableRow("device_id"): RowValue(device_id),
-                            }
+                        where_check_stock_device_id = {
+                            "stock_device_id": stock_device_id,
+                            "device_name": device_name,
+                        }
 
-                            interface.change_device_status(
-                                set_data=set_data, where_data=where_mogrif_data
-                            )
+                        if self.bot_check_device_from_stockpile(
+                            where_check_stock_device_id
+                        ):
+                            device_id = self.bot_device_id(device_name)
+                            if device_id:
+                                set_data = {
+                                    TableRow("stock_device_status"): RowValue(mark),
+                                    TableRow("at_clean_date"): RowValue(
+                                        modificate_date_to_str()
+                                    ),
+                                }
+                                where_mogrif_data = {
+                                    TableRow("stock_device_id"): RowValue(
+                                        stock_device_id
+                                    ),
+                                    TableRow("device_id"): RowValue(device_id),
+                                }
+
+                                interface.change_device_status(
+                                    set_data=set_data, where_data=where_mogrif_data
+                                )
+
+                            else:
+                                return f"Прибора с таким названием {device_name} нет в базе"
+
+                        else:
+                            return f"Прибора с таким id {stock_device_id} нет на складе"
 
                     case {
                         "stock_device_id": str(stock_device_id),
                         "device_name": str(device_name),
                         "mark": "1" as mark,
                     }:
-                        device_id = self.bot_device_id(device_name)
-                        if device_id:
-                            set_data = {
-                                TableRow("sd.stock_device_status"): RowValue(mark),
-                                TableRow("sd.at_clean_date"): RowValue(
-                                    modificate_date_to_str()
-                                ),
-                            }
-                            where_mogrif_data = {
-                                TableRow("sd.stock_device_id"): RowValue(
-                                    stock_device_id
-                                ),
-                                TableRow("sd.device_id"): RowValue(device_id),
-                            }
+                        where_check_stock_device_id = {
+                            "stock_device_id": stock_device_id,
+                            "device_name": device_name,
+                        }
 
-                            interface.change_device_status(
-                                set_data=set_data, where_data=where_mogrif_data
-                            )
+                        if self.bot_check_device_from_stockpile(
+                            where_check_stock_device_id
+                        ):
+                            device_id = self.bot_device_id(device_name)
+                            if device_id:
+                                set_data = {
+                                    TableRow("stock_device_status"): RowValue(mark),
+                                    TableRow("at_clean_date"): RowValue(
+                                        modificate_date_to_str()
+                                    ),
+                                }
+                                where_mogrif_data = {
+                                    TableRow("stock_device_id"): RowValue(
+                                        stock_device_id
+                                    ),
+                                    TableRow("device_id"): RowValue(device_id),
+                                }
+
+                                interface.change_device_status(
+                                    set_data=set_data, where_data=where_mogrif_data
+                                )
+
+                            else:
+                                return f"Прибора с таким названием {device_name} нет в базе"
+
+                        else:
+                            return f"Прибора с таким id {stock_device_id} нет на складе"
 
                     case _:
                         return f"Переданные данные {where_data} не прошли валидацию"

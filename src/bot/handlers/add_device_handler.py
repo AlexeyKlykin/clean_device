@@ -29,31 +29,33 @@ bot_api_db = APIBotDb()
 
 class AddDevice(StatesGroup):
     device_name = State()
-    company_name = State()
-    type_title = State()
+
+
+companys_cache = set()
+device_types_cache = set()
 
 
 @device_router.message(F.text == "/add_device")
 async def device(message: Message, state: FSMContext):
     await message.answer(
-        text="Введите название устройства", reply_markup=ReplyKeyboardRemove()
+        text="<i>Введите название устройства</i>", reply_markup=ReplyKeyboardRemove()
     )
     await state.set_state(AddDevice.device_name)
+    companys_cache.update(bot_api_db.bot_keyboard_company_name_lst())
+    device_types_cache.update(bot_api_db.bot_keyboard_device_type_lst())
 
 
 @device_router.message(AddDevice.device_name)
 async def device_name(message: Message, state: FSMContext):
     await state.update_data(device_name=message.text)
     await message.answer(
-        text="Введите компанию производитель прибора",
+        text="<i>Введите компанию производитель прибора</i>",
         reply_markup=bot_api_db.bot_inline_kb(Marker.DCOMPANY),
     )
 
 
 @device_router.callback_query(
-    DeviceCompanyCallback.filter(
-        F.text_search.in_(bot_api_db.bot_keyboard_company_name_lst())
-    )
+    DeviceCompanyCallback.filter(F.text_search.in_(companys_cache))
 )
 async def company_for_device(
     callback: CallbackQuery, callback_data: DeviceCompanyCallback, state: FSMContext
@@ -66,21 +68,20 @@ async def company_for_device(
     if callback.message:
         if device_data["company_name"]:
             await callback.message.answer(
-                text="Выберите тип прибора",
+                text="<i>Выберите тип прибора</i>",
                 reply_markup=bot_api_db.bot_inline_kb(Marker.DTYPE),
             )
 
         else:
             await callback.message.answer(
-                text="Выберите тип прибора", reply_markup=kb_start
+                text="<i>Сообщение не получено возврат к главному меню</i>",
+                reply_markup=kb_start,
             )
             await state.clear()
 
 
 @device_router.callback_query(
-    DeviceTypeCallback.filter(
-        F.text_search.in_(bot_api_db.bot_keyboard_device_type_lst())
-    )
+    DeviceTypeCallback.filter(F.text_search.in_(device_types_cache))
 )
 async def type_for_device(
     callback: CallbackQuery, callback_data: DeviceTypeCallback, state: FSMContext
@@ -88,11 +89,12 @@ async def type_for_device(
     await callback.answer()
     device_data = await state.get_data()
     device_data["type_title"] = callback_data.type_title
-    bot_api_db.bot_set_device(device_data)
+    result_job = bot_api_db.bot_set_device(device_data)
 
     if callback.message:
         await callback.message.answer(
-            text="Прибор добавлен в базу", reply_markup=kb_start
+            text=f"<code>{result_job}</code>",
+            reply_markup=kb_start,
         )
 
     await state.clear()
@@ -103,6 +105,6 @@ async def cance_stock(callback: CallbackQuery, state: FSMContext):
     await callback.answer()
     if callback.message:
         await callback.message.answer(
-            text="Очистка всех запросов", reply_markup=kb_start
+            text="<i>Очистка всех запросов</i>", reply_markup=kb_start
         )
     await state.clear()

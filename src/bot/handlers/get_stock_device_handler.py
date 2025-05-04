@@ -39,7 +39,7 @@ class BrokenDevices(StatesGroup):
 
 @get_stock_device_router.message(F.text == "/get_broken_device")
 async def start_get_broken_device(message: Message, state: FSMContext):
-    await message.answer(text="Введите дату а формате dd-m-yyyy")
+    await message.answer(text="<i>Введите дату а формате d-m-yyyy</i>")
     await state.set_state(BrokenDevices.clean_date)
 
 
@@ -53,7 +53,9 @@ async def get_broken_device(message: Message, state: FSMContext):
         await message.answer(
             text="\n".join(
                 [
-                    f"ID прибора: {item.stock_device_id}\nНазвание прибора: {item.device_name}\nДата очистки: {item.at_clean_date}"
+                    f"""ID прибора: <code>{item.stock_device_id}</code>
+Название прибора: <code>{item.device_name}</code>
+Дата очистки: <code>{item.at_clean_date}</code>"""
                     for item in devices
                     if isinstance(item, StockBrokenDeviceData)
                 ]
@@ -61,12 +63,12 @@ async def get_broken_device(message: Message, state: FSMContext):
             reply_markup=kb_start,
         )
     else:
-        await message.answer(text="Нет приборов на починку")
+        await message.answer(text=f"<b>{devices}</b>")
 
 
 @get_stock_device_router.message(F.text == "/mark_device")
 async def start_mark_device(message: Message, state: FSMContext):
-    await message.answer(text="Введите id прибора")
+    await message.answer(text="<i>Введите id прибора</i>")
     await state.set_state(MarkDeviceState.stock_device_id)
 
 
@@ -74,7 +76,7 @@ async def start_mark_device(message: Message, state: FSMContext):
 async def mark_for_stock_device_id(message: Message, state: FSMContext):
     await state.update_data(stock_device_id=message.text)
     await message.answer(
-        text="Если вы хотите пометить прибор для ремонта введите 0. Если он отремонтирован то 1",
+        text="Если вы хотите пометить прибор для ремонта введите <b>0</b>. Если он отремонтирован то <b>1</b>",
     )
     await state.set_state(MarkDeviceState.mark)
 
@@ -85,19 +87,17 @@ async def mark_for_stock_device(message: Message, state: FSMContext):
     if mark in ["0", "1"]:
         await state.update_data(mark=mark)
         await message.answer(
-            text="Выберите прибор",
+            text="<i>Выберите прибор</i>",
             reply_markup=bot_api_db.bot_inline_kb(Marker.MARKING_DEVICES),
         )
     else:
-        await message.answer("Вы ввели неверный параметр марки", reply_markup=kb_start)
+        await message.answer(
+            "<i>Вы ввели неверный параметр марки</i>", reply_markup=kb_start
+        )
 
 
 @get_stock_device_router.callback_query(
-    DeviceCallback.filter(
-        F.text_search.in_(
-            ["mark_" + item for item in bot_api_db.bot_keyboard_device_lst()]
-        )
-    )
+    DeviceCallback.filter(F.text_search.contains("mark_"))
 )
 async def mark_device(
     callback: CallbackQuery, callback_data: DeviceCallback, state: FSMContext
@@ -105,25 +105,24 @@ async def mark_device(
     await callback.answer()
     device_data = await state.get_data()
     device_data["device_name"] = callback_data.device_name
+    result_job = bot_api_db.bot_change_device_status(device_data)
 
     if callback.message:
-        if device_data["mark"] == "0":
-            bot_api_db.bot_change_device_status(device_data)
-
+        if device_data["mark"] == "0" and not result_job:
             await callback.message.answer(
-                text="Прибор помещен в ремонт", reply_markup=kb_start
+                text="<b>Прибор помещен в ремонт</b>", reply_markup=kb_start
             )
 
-        elif device_data["mark"] == "1":
+        elif device_data["mark"] == "1" and not result_job:
             bot_api_db.bot_change_device_status(device_data)
 
             await callback.message.answer(
-                text="Прибор выведен из ремонта", reply_markup=kb_start
+                text="<b>Прибор выведен из ремонта</b>", reply_markup=kb_start
             )
 
         else:
             await callback.message.answer(
-                text="Неверно введены данные", reply_markup=kb_start
+                text=f"<b>{result_job}</b>", reply_markup=kb_start
             )
 
     await state.clear()
@@ -131,7 +130,7 @@ async def mark_device(
 
 @get_stock_device_router.message(F.text == "/get_stock_device")
 async def send_stock_device_id(message: Message, state: FSMContext):
-    await message.answer(text="Введите номер устройства со склада")
+    await message.answer(text="<i>Введите номер устройства со склада</i>")
     await state.set_state(GetStockDevice.stock_device_id)
 
 
@@ -139,17 +138,13 @@ async def send_stock_device_id(message: Message, state: FSMContext):
 async def choice_stock_device_name(message: Message, state: FSMContext):
     await state.update_data(stock_device_id=message.text)
     await message.answer(
-        text="Выберите прибор",
+        text="<i>Выберите прибор</i>",
         reply_markup=bot_api_db.bot_inline_kb(Marker.GET_DEVICE),
     )
 
 
 @get_stock_device_router.callback_query(
-    DeviceCallback.filter(
-        F.text_search.in_(
-            ["get_" + item for item in bot_api_db.bot_keyboard_device_lst()]
-        )
-    )
+    DeviceCallback.filter(F.text_search.contains("get_"))
 )
 async def show_the_devices_found(
     callback: CallbackQuery, callback_data: DeviceCallback, state: FSMContext
@@ -162,15 +157,17 @@ async def show_the_devices_found(
     if callback.message:
         if isinstance(stock_device, dict):
             await callback.message.answer(
-                text=f"""Id прибора: {stock_device["stock_device_id"]}
-        Название прибора: {stock_device["device_name"]}
-        Компания производитель прибора: {stock_device["company_name"]}
-        Тип прибора: {stock_device["type_title"]}
-        Дата последней очистки: {stock_device["at_clean_date"]}""",
+                text=f"""Id прибора: <code>{stock_device["stock_device_id"]}</code>
+Название прибора: <code>{stock_device["device_name"]}</code>
+Компания производитель прибора: <code>{stock_device["company_name"]}</code>
+Тип прибора: <code>{stock_device["type_title"]}</code>
+Дата последней очистки: <code>{stock_device["at_clean_date"]}</code>""",
                 reply_markup=kb_start,
             )
 
         else:
-            await callback.message.answer(text=stock_device, reply_markup=kb_start)
+            await callback.message.answer(
+                text=f"<b>{stock_device}</b>", reply_markup=kb_start
+            )
 
     await state.clear()

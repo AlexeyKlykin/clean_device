@@ -1,4 +1,6 @@
 import os
+import sqlite3
+import logging
 
 from src.db_app import (
     CREATE_TABLE_DEVICE,
@@ -8,6 +10,14 @@ from src.db_app import (
     DBSqlite,
 )
 from src.secret import secrets
+
+logging.basicConfig(
+    level=logging.WARNING,
+    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
+    datefmt="%Y-%m-%d %H:%M:%S",
+)
+logger = logging.getLogger(__name__)
+logger.addHandler(logging.StreamHandler())
 
 
 def set_full_data():
@@ -40,8 +50,8 @@ def set_full_data():
                     with open(fp, "r") as file:
                         conn.executescript(file.read())
 
-    except Exception as err:
-        raise err
+    except sqlite3.IntegrityError:
+        logger.warning("Данные уже есть в дб")
 
 
 if __name__ == "__main__":

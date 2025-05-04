@@ -1,6 +1,10 @@
 from pytest import mark
 from src.bot_api import APIBotDb
-from src.utils import modificate_date_to_str
+from src.schema_for_validation import (
+    OutputDeviceCompanyTable,
+    OutputDeviceTable,
+    StockBrokenDeviceData,
+)
 
 
 @mark.usefixtures("db_connect")
@@ -72,16 +76,16 @@ class TestAPIBotDb:
         broken_devices = api.bot_lst_broken_device_from_stockpile(where_data)
 
         assert broken_devices == [
-            {
-                "stock_device_id": 87,
-                "device_name": "Prima Mythos",
-                "at_clean_date": "30-4-2025",
-            },
-            {
-                "stock_device_id": 128,
-                "device_name": "Prima Mythos",
-                "at_clean_date": "30-4-2025",
-            },
+            StockBrokenDeviceData(
+                stock_device_id=87,
+                device_name="Prima Mythos",
+                at_clean_date="30-4-2025",
+            ),
+            StockBrokenDeviceData(
+                stock_device_id=128,
+                device_name="Prima Mythos",
+                at_clean_date="30-4-2025",
+            ),
         ]
 
     def test_bot_lst_device(self):
@@ -91,48 +95,48 @@ class TestAPIBotDb:
         lst_device = api.bot_lst_device()
 
         assert lst_device == [
-            {
-                "device_id": 1,
-                "device_name": "Sharpy",
-                "company_name": "Clay Paky",
-                "type_title": "Beam",
-            },
-            {
-                "device_id": 2,
-                "device_name": "K20",
-                "company_name": "Clay Paky",
-                "type_title": "Hybrid",
-            },
-            {
-                "device_id": 3,
-                "device_name": "Prima Mythos",
-                "company_name": "Clay Paky",
-                "type_title": "Hybrid",
-            },
-            {
-                "device_id": 4,
-                "device_name": "Laser Beam",
-                "company_name": "Light Craft",
-                "type_title": "Beam",
-            },
-            {
-                "device_id": 5,
-                "device_name": "7x40",
-                "company_name": "Light Craft",
-                "type_title": "Beam",
-            },
-            {
-                "device_id": 6,
-                "device_name": "Arolla",
-                "company_name": "Clay Paky",
-                "type_title": "Spot",
-            },
-            {
-                "device_id": 7,
-                "device_name": "Scenius unico",
-                "company_name": "Clay Paky",
-                "type_title": "Hybrid",
-            },
+            OutputDeviceTable(
+                device_id=1,
+                device_name="Sharpy",
+                company_name="Clay Paky",
+                type_title="Beam",
+            ),
+            OutputDeviceTable(
+                device_id=2,
+                device_name="K20",
+                company_name="Clay Paky",
+                type_title="Hybrid",
+            ),
+            OutputDeviceTable(
+                device_id=3,
+                device_name="Prima Mythos",
+                company_name="Clay Paky",
+                type_title="Hybrid",
+            ),
+            OutputDeviceTable(
+                device_id=4,
+                device_name="Laser Beam",
+                company_name="Light Craft",
+                type_title="Beam",
+            ),
+            OutputDeviceTable(
+                device_id=5,
+                device_name="7x40",
+                company_name="Light Craft",
+                type_title="Beam",
+            ),
+            OutputDeviceTable(
+                device_id=6,
+                device_name="Arolla",
+                company_name="Clay Paky",
+                type_title="Spot",
+            ),
+            OutputDeviceTable(
+                device_id=7,
+                device_name="Scenius unico",
+                company_name="Clay Paky",
+                type_title="Hybrid",
+            ),
         ]
 
     def test_bot_lst_company(self):
@@ -142,18 +146,18 @@ class TestAPIBotDb:
         lst_company = api.bot_lst_company()
 
         assert lst_company == [
-            {
-                "company_id": 1,
-                "company_name": "Clay Paky",
-                "producer_country": "Italy",
-                "description_company": "https://www.claypaky.it/",
-            },
-            {
-                "company_id": 2,
-                "company_name": "Light Craft",
-                "producer_country": "Russia",
-                "description_company": "https://light-craft.ru/",
-            },
+            OutputDeviceCompanyTable(
+                company_id=1,
+                company_name="Clay Paky",
+                producer_country="Italy",
+                description_company="https://www.claypaky.it/",
+            ),
+            OutputDeviceCompanyTable(
+                company_id=2,
+                company_name="Light Craft",
+                producer_country="Russia",
+                description_company="https://light-craft.ru/",
+            ),
         ]
 
     def test_bot_device_id(self):
@@ -233,11 +237,9 @@ class TestAPIBotDb:
         res = api.bot_lst_broken_device_from_stockpile()
 
         assert res == [
-            {
-                "stock_device_id": 1,
-                "device_name": "Laser Beam",
-                "at_clean_date": modificate_date_to_str(),
-            }
+            StockBrokenDeviceData(
+                stock_device_id=1, device_name="Laser Beam", at_clean_date="3-5-2025"
+            ),
         ]
 
     def test_bot_set_device_from_stockpile_by_name_and_id_to_db(self):
