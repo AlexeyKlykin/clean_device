@@ -16,7 +16,6 @@ from aiogram.utils.keyboard import InlineKeyboardBuilder
 from aiogram.filters.callback_data import CallbackData
 
 from src.data_resolve_interface import DatabaseTableHandlerInterface
-from src.db_app import DBSqlite
 from src.schema_for_validation import (
     DeviceCompanyTable,
     DeviceTable,
@@ -202,16 +201,15 @@ class APIBotDb(AbstractAPIBotDb):
                 }
 
                 if self.db_name:
-                    with DBSqlite(self.db_name) as conn:
-                        interface = DatabaseTableHandlerInterface(conn)
-                        interface.schema = StockDeviceData
-                        stock_device = interface.get_item(where_data=where_mogrif_data)
+                    with DatabaseTableHandlerInterface(db_name=self.db_name) as conn:
+                        conn.schema = StockDeviceData
+                        stock_device = conn.get_item(where_data=where_mogrif_data)
                         try:
                             return stock_device.model_dump()
 
                         except AttributeError as err:
                             logger.warning(err)
-                            return f"Прибор с названием {device_name} не найден в базе"
+                            return f"Прибор с id {stock_device_id} и названием {device_name} не найден в базе"
 
                 else:
                     raise Exception("Не верно указана база данных")
@@ -226,10 +224,9 @@ class APIBotDb(AbstractAPIBotDb):
             where_data = {TableRow("device_name"): RowValue(device_name)}
 
             if self.db_name:
-                with DBSqlite(self.db_name) as conn:
-                    interface = DatabaseTableHandlerInterface(conn)
-                    interface.schema = OutputDeviceTable
-                    device = interface.get_item(where_data=where_data)
+                with DatabaseTableHandlerInterface(db_name=self.db_name) as conn:
+                    conn.schema = OutputDeviceTable
+                    device = conn.get_item(where_data=where_data)
                     try:
                         return device.model_dump()
 
@@ -250,10 +247,9 @@ class APIBotDb(AbstractAPIBotDb):
             where_data = {TableRow("company_name"): RowValue(company_name)}
 
             if self.db_name:
-                with DBSqlite(self.db_name) as conn:
-                    interface = DatabaseTableHandlerInterface(conn)
-                    interface.schema = OutputDeviceCompanyTable
-                    company = interface.get_item(where_data=where_data)
+                with DatabaseTableHandlerInterface(db_name=self.db_name) as conn:
+                    conn.schema = OutputDeviceCompanyTable
+                    company = conn.get_item(where_data=where_data)
                     try:
                         return company.model_dump()
 
@@ -274,10 +270,9 @@ class APIBotDb(AbstractAPIBotDb):
             where_data = {TableRow("type_title"): RowValue(type_title)}
 
             if self.db_name:
-                with DBSqlite(self.db_name) as conn:
-                    interface = DatabaseTableHandlerInterface(conn)
-                    interface.schema = OutputDeviceTypeTable
-                    device_type = interface.get_item(where_data=where_data)
+                with DatabaseTableHandlerInterface(db_name=self.db_name) as conn:
+                    conn.schema = OutputDeviceTypeTable
+                    device_type = conn.get_item(where_data=where_data)
                     try:
                         return device_type.model_dump()
 
@@ -297,9 +292,8 @@ class APIBotDb(AbstractAPIBotDb):
         """метод для получения всех приборов со склада"""
 
         if self.db_name:
-            with DBSqlite(self.db_name) as conn:
-                interface = DatabaseTableHandlerInterface(conn)
-                interface.schema = StockBrokenDeviceData
+            with DatabaseTableHandlerInterface(db_name=self.db_name) as conn:
+                conn.schema = StockBrokenDeviceData
 
                 match where_data:
                     case {"at_clean_date": "0"}:
@@ -307,7 +301,7 @@ class APIBotDb(AbstractAPIBotDb):
                         where_mogrif_data = {
                             TableRow("sd.at_clean_date"): RowValue(date),
                         }
-                        stock_device = interface.get_items(where_data=where_mogrif_data)
+                        stock_device = conn.get_items(where_data=where_mogrif_data)
 
                         try:
                             return [
@@ -323,7 +317,7 @@ class APIBotDb(AbstractAPIBotDb):
                         where_mogrif_data = {
                             TableRow("sd.at_clean_date"): RowValue(at_clean_date),
                         }
-                        stock_device = interface.get_items(where_data=where_mogrif_data)
+                        stock_device = conn.get_items(where_data=where_mogrif_data)
 
                         try:
                             return [
@@ -344,10 +338,9 @@ class APIBotDb(AbstractAPIBotDb):
         """метод для получения всего списка приборов"""
 
         if self.db_name:
-            with DBSqlite(self.db_name) as conn:
-                interface = DatabaseTableHandlerInterface(conn)
-                interface.schema = OutputDeviceTable
-                device = interface.get_items()
+            with DatabaseTableHandlerInterface(db_name=self.db_name) as conn:
+                conn.schema = OutputDeviceTable
+                device = conn.get_items()
 
                 try:
                     return [
@@ -364,10 +357,9 @@ class APIBotDb(AbstractAPIBotDb):
         """метод для получения всех компаний производителей"""
 
         if self.db_name:
-            with DBSqlite(self.db_name) as conn:
-                interface = DatabaseTableHandlerInterface(conn)
-                interface.schema = OutputDeviceCompanyTable
-                company = interface.get_items()
+            with DatabaseTableHandlerInterface(db_name=self.db_name) as conn:
+                conn.schema = OutputDeviceCompanyTable
+                company = conn.get_items()
 
                 try:
                     return [
@@ -386,10 +378,9 @@ class APIBotDb(AbstractAPIBotDb):
         """метод получения всех типов приборов"""
 
         if self.db_name:
-            with DBSqlite(self.db_name) as conn:
-                interface = DatabaseTableHandlerInterface(conn)
-                interface.schema = OutputDeviceTypeTable
-                device_type = interface.get_items()
+            with DatabaseTableHandlerInterface(db_name=self.db_name) as conn:
+                conn.schema = OutputDeviceTypeTable
+                device_type = conn.get_items()
                 return [
                     item
                     for item in device_type
@@ -406,10 +397,9 @@ class APIBotDb(AbstractAPIBotDb):
             where_data = {TableRow("device_name"): RowValue(device_name)}
 
             if self.db_name:
-                with DBSqlite(self.db_name) as conn:
-                    interface = DatabaseTableHandlerInterface(conn)
-                    interface.schema = OutputDeviceTable
-                    device = interface.get_item(where_data=where_data)
+                with DatabaseTableHandlerInterface(db_name=self.db_name) as conn:
+                    conn.schema = OutputDeviceTable
+                    device = conn.get_item(where_data=where_data)
 
                     if isinstance(device, OutputDeviceTable):
                         return str(device.device_id)
@@ -430,10 +420,9 @@ class APIBotDb(AbstractAPIBotDb):
             where_data = {TableRow("company_name"): RowValue(company_name)}
 
             if self.db_name:
-                with DBSqlite(self.db_name) as conn:
-                    interface = DatabaseTableHandlerInterface(conn)
-                    interface.schema = OutputDeviceCompanyTable
-                    company = interface.get_item(where_data=where_data)
+                with DatabaseTableHandlerInterface(db_name=self.db_name) as conn:
+                    conn.schema = OutputDeviceCompanyTable
+                    company = conn.get_item(where_data=where_data)
 
                     if isinstance(company, OutputDeviceCompanyTable):
                         return str(company.company_id)
@@ -453,10 +442,9 @@ class APIBotDb(AbstractAPIBotDb):
             where_data = {TableRow("type_title"): RowValue(type_title)}
 
             if self.db_name:
-                with DBSqlite(self.db_name) as conn:
-                    interface = DatabaseTableHandlerInterface(conn)
-                    interface.schema = OutputDeviceTypeTable
-                    device_type = interface.get_item(where_data=where_data)
+                with DatabaseTableHandlerInterface(db_name=self.db_name) as conn:
+                    conn.schema = OutputDeviceTypeTable
+                    device_type = conn.get_item(where_data=where_data)
 
                     if isinstance(device_type, OutputDeviceTypeTable):
                         return str(device_type.type_device_id)
@@ -484,10 +472,9 @@ class APIBotDb(AbstractAPIBotDb):
                 }
 
                 if self.db_name:
-                    with DBSqlite(self.db_name) as conn:
-                        interface = DatabaseTableHandlerInterface(conn)
-                        interface.schema = StockDeviceData
-                        stock_device = interface.get_item(where_data=where_mogrif_data)
+                    with DatabaseTableHandlerInterface(db_name=self.db_name) as conn:
+                        conn.schema = StockDeviceData
+                        stock_device = conn.get_item(where_data=where_mogrif_data)
 
                         if isinstance(stock_device, StockDeviceData):
                             check = True
@@ -509,10 +496,9 @@ class APIBotDb(AbstractAPIBotDb):
             where_data = {TableRow("device_name"): RowValue(device_name)}
 
             if self.db_name:
-                with DBSqlite(self.db_name) as conn:
-                    interface = DatabaseTableHandlerInterface(conn)
-                    interface.schema = OutputDeviceTable
-                    device = interface.get_item(where_data=where_data)
+                with DatabaseTableHandlerInterface(db_name=self.db_name) as conn:
+                    conn.schema = OutputDeviceTable
+                    device = conn.get_item(where_data=where_data)
 
                     if isinstance(device, OutputDeviceTable):
                         check = True
@@ -532,10 +518,9 @@ class APIBotDb(AbstractAPIBotDb):
             where_data = {TableRow("company_name"): RowValue(company_name)}
 
             if self.db_name:
-                with DBSqlite(self.db_name) as conn:
-                    interface = DatabaseTableHandlerInterface(conn)
-                    interface.schema = OutputDeviceCompanyTable
-                    company = interface.get_item(where_data=where_data)
+                with DatabaseTableHandlerInterface(db_name=self.db_name) as conn:
+                    conn.schema = OutputDeviceCompanyTable
+                    company = conn.get_item(where_data=where_data)
 
                     if isinstance(company, OutputDeviceCompanyTable):
                         return True
@@ -555,10 +540,9 @@ class APIBotDb(AbstractAPIBotDb):
             where_data = {TableRow("type_title"): RowValue(type_title)}
 
             if self.db_name:
-                with DBSqlite(self.db_name) as conn:
-                    interface = DatabaseTableHandlerInterface(conn)
-                    interface.schema = OutputDeviceTypeTable
-                    device_type = interface.get_item(where_data=where_data)
+                with DatabaseTableHandlerInterface(db_name=self.db_name) as conn:
+                    conn.schema = OutputDeviceTypeTable
+                    device_type = conn.get_item(where_data=where_data)
 
                     if isinstance(device_type, OutputDeviceTypeTable):
                         return True
@@ -575,9 +559,8 @@ class APIBotDb(AbstractAPIBotDb):
         """метод смены статуса прибора"""
 
         if self.db_name:
-            with DBSqlite(self.db_name) as conn:
-                interface = DatabaseTableHandlerInterface(conn)
-                interface.schema = StockDeviceTableStatus
+            with DatabaseTableHandlerInterface(db_name=self.db_name) as conn:
+                conn.schema = StockDeviceTableStatus
 
                 match where_data:
                     case {
@@ -608,7 +591,7 @@ class APIBotDb(AbstractAPIBotDb):
                                     TableRow("device_id"): RowValue(device_id),
                                 }
 
-                                interface.change_device_status(
+                                conn.change_device_status(
                                     set_data=set_data, where_data=where_mogrif_data
                                 )
 
@@ -646,7 +629,7 @@ class APIBotDb(AbstractAPIBotDb):
                                     TableRow("device_id"): RowValue(device_id),
                                 }
 
-                                interface.change_device_status(
+                                conn.change_device_status(
                                     set_data=set_data, where_data=where_mogrif_data
                                 )
 
@@ -679,10 +662,11 @@ class APIBotDb(AbstractAPIBotDb):
                     item = (stock_device_id, device_id, date)
 
                     if self.db_name:
-                        with DBSqlite(self.db_name) as conn:
-                            interface = DatabaseTableHandlerInterface(conn)
-                            interface.schema = StockDeviceTable
-                            interface.set_item(item)
+                        with DatabaseTableHandlerInterface(
+                            db_name=self.db_name
+                        ) as conn:
+                            conn.schema = StockDeviceTable
+                            conn.set_item(item)
                             return f"Прибор с именем {device_name} с id {stock_device_id} добавлен в базу данных"
 
                     else:
@@ -707,10 +691,9 @@ class APIBotDb(AbstractAPIBotDb):
                 item = (type_title, type_description)
 
                 if self.db_name:
-                    with DBSqlite(self.db_name) as conn:
-                        interface = DatabaseTableHandlerInterface(conn)
-                        interface.schema = DeviceTypeTable
-                        interface.set_item(item)
+                    with DatabaseTableHandlerInterface(db_name=self.db_name) as conn:
+                        conn.schema = DeviceTypeTable
+                        conn.set_item(item)
                         return f"Тип прибора с названием {type_title} добавлен в бд"
 
                 else:
@@ -731,10 +714,9 @@ class APIBotDb(AbstractAPIBotDb):
                 item = (company_name, producer_coutry, description_company)
 
                 if self.db_name:
-                    with DBSqlite(self.db_name) as conn:
-                        interface = DatabaseTableHandlerInterface(conn)
-                        interface.schema = DeviceCompanyTable
-                        interface.set_item(item)
+                    with DatabaseTableHandlerInterface(db_name=self.db_name) as conn:
+                        conn.schema = DeviceCompanyTable
+                        conn.set_item(item)
                         return f"Компания с названием {company_name} добавлена в базу"
 
                 else:
@@ -757,10 +739,9 @@ class APIBotDb(AbstractAPIBotDb):
                 item = (device_name, company_id, type_device_id)
 
                 if self.db_name:
-                    with DBSqlite(self.db_name) as conn:
-                        interface = DatabaseTableHandlerInterface(conn)
-                        interface.schema = DeviceTable
-                        interface.set_item(item)
+                    with DatabaseTableHandlerInterface(db_name=self.db_name) as conn:
+                        conn.schema = DeviceTable
+                        conn.set_item(item)
                         return f"Прибор с именем {device_name} добавлен в базу"
 
                 else:
@@ -773,9 +754,8 @@ class APIBotDb(AbstractAPIBotDb):
         self, set_data: Dict[str, str], date: str | None = None
     ) -> str:
         if self.db_name:
-            with DBSqlite(self.db_name) as conn:
-                interface = DatabaseTableHandlerInterface(conn)
-                interface.schema = StockDeviceTable
+            with DatabaseTableHandlerInterface(db_name=self.db_name) as conn:
+                conn.schema = StockDeviceTable
 
                 match set_data:
                     case {
@@ -794,7 +774,7 @@ class APIBotDb(AbstractAPIBotDb):
                                 set_mogrif_data = {
                                     TableRow("at_clean_date"): RowValue(date)
                                 }
-                                interface.update_item(
+                                conn.update_item(
                                     set_data=set_mogrif_data, where_data=where_data
                                 )
                                 return f"Данные прибора - {device_name} обновлены"
@@ -805,7 +785,7 @@ class APIBotDb(AbstractAPIBotDb):
                                     TableRow("at_clean_date"): RowValue(date)
                                 }
 
-                                interface.update_item(
+                                conn.update_item(
                                     set_data=set_mogrif_data, where_data=where_data
                                 )
                                 return f"Данные прибора - {device_name} обновлены"
@@ -820,10 +800,9 @@ class APIBotDb(AbstractAPIBotDb):
 
     def bot_keyboard_company_name_lst(self) -> List[str] | str:
         if self.db_name:
-            with DBSqlite(self.db_name) as conn:
-                interface = DatabaseTableHandlerInterface(conn)
-                interface.schema = OutputDeviceCompanyTable
-                company = interface.get_items()
+            with DatabaseTableHandlerInterface(db_name=self.db_name) as conn:
+                conn.schema = OutputDeviceCompanyTable
+                company = conn.get_items()
 
                 try:
                     return [
@@ -841,10 +820,9 @@ class APIBotDb(AbstractAPIBotDb):
 
     def bot_keyboard_device_type_lst(self) -> List[str] | str:
         if self.db_name:
-            with DBSqlite(self.db_name) as conn:
-                interface = DatabaseTableHandlerInterface(conn)
-                interface.schema = OutputDeviceTypeTable
-                device_type = interface.get_items()
+            with DatabaseTableHandlerInterface(db_name=self.db_name) as conn:
+                conn.schema = OutputDeviceTypeTable
+                device_type = conn.get_items()
                 try:
                     return [
                         item.type_title
@@ -861,10 +839,9 @@ class APIBotDb(AbstractAPIBotDb):
 
     def bot_keyboard_device_lst(self) -> List[str] | str:
         if self.db_name:
-            with DBSqlite(self.db_name) as conn:
-                interface = DatabaseTableHandlerInterface(conn)
-                interface.schema = OutputDeviceTable
-                device = interface.get_items()
+            with DatabaseTableHandlerInterface(db_name=self.db_name) as conn:
+                conn.schema = OutputDeviceTable
+                device = conn.get_items()
 
                 try:
                     return [

@@ -1,4 +1,5 @@
 from pytest import fixture
+from src.data_resolve_interface import DatabaseTableHandlerInterface
 from src.db_app import (
     CREATE_TABLE_DEVICE,
     CREATE_TABLE_DEVICE_COMPANY,
@@ -20,7 +21,6 @@ from src.schema_for_validation import (
     TableRow,
 )
 
-table_list = ["device", "device_type", "device_company", "stock_device"]
 
 all_tables = (
     StockDeviceTable,
@@ -35,7 +35,33 @@ all_tables = (
 
 
 @fixture
+def db_interface():
+    table_list = ["device", "device_type", "device_company", "stock_device"]
+    fp_lst = [
+        "stock_device_test.sql",
+        "device_test.sql",
+        "device_company_test.sql",
+        "device_type_test.sql",
+    ]
+
+    create_table_list = [
+        CREATE_TABLE_STOCK_DEVICE,
+        CREATE_TABLE_DEVICE,
+        CREATE_TABLE_DEVICE_COMPANY,
+        CREATE_TABLE_DEVICE_TYPE,
+    ]
+
+    with DatabaseTableHandlerInterface("clean_device_test.db") as handler_db:
+        handler_db.fill_in_the_table(fp_lst, create_table_list)
+
+        yield handler_db
+
+        handler_db.clean_table(table_list)
+
+
+@fixture
 def db_connect():
+    table_list = ["device", "device_type", "device_company", "stock_device"]
     fp_lst = [
         "stock_device_test.sql",
         "device_test.sql",

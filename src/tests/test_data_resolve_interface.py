@@ -175,31 +175,29 @@ class TestDatabaseTableHandlerInterface:
         get_table,
         where_value,
         expected,
-        db_connect,
+        db_interface,
     ):
         """тест: обновить один объект из базы"""
 
-        handler_db = DatabaseTableHandlerInterface(db_connect)
-        handler_db.schema = set_table
-        handler_db.update_item(set_data=set_data, where_data=where_data)
+        db_interface.schema = set_table
+        db_interface.update_item(set_data=set_data, where_data=where_data)
 
-        handler_db.schema = get_table
-        res = handler_db.get_item(where_data=where_value)
+        db_interface.schema = get_table
+        res = db_interface.get_item(where_data=where_value)
 
         assert res == expected
 
     @mark.parametrize("set_table, set_value, get_table, get_value, expected", testdata)
     def test_set_item(
-        self, set_table, set_value, get_table, get_value, expected, db_connect
+        self, set_table, set_value, get_table, get_value, expected, db_interface
     ):
         """тест: добавления данных в бд"""
 
-        handler_db = DatabaseTableHandlerInterface(db_connect)
-        handler_db.schema = set_table
-        handler_db.set_item(set_value)
+        db_interface.schema = set_table
+        db_interface.set_item(set_value)
 
-        handler_db.schema = get_table
-        res = handler_db.get_item(where_data=get_value)
+        db_interface.schema = get_table
+        res = db_interface.get_item(where_data=get_value)
 
         assert res == expected
 
@@ -207,19 +205,18 @@ class TestDatabaseTableHandlerInterface:
         "set_table, set_value, get_table, get_value, expected", testdatamany
     )
     def test_set_items(
-        self, set_table, set_value, get_table, get_value, expected, db_connect
+        self, set_table, set_value, get_table, get_value, expected, db_interface
     ):
         """тест: массовой вставки данных в таблицу"""
 
-        handler_db = DatabaseTableHandlerInterface(db_connect)
-        handler_db.schema = set_table
-        handler_db.set_items(set_value)
+        db_interface.schema = set_table
+        db_interface.set_items(set_value)
 
-        handler_db.schema = get_table
+        db_interface.schema = get_table
 
         if get_value:
-            res = handler_db.get_items(where_data=get_value)
+            res = db_interface.get_items(where_data=get_value)
         else:
-            res = handler_db.get_items()
+            res = db_interface.get_items()
 
         assert expected in res

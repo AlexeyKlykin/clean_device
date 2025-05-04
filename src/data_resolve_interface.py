@@ -50,11 +50,27 @@ class AbstractDatabaseTableHandlerInterface(ABC):
 
 
 class DatabaseTableHandlerInterface(AbstractDatabaseTableHandlerInterface):
-    def __init__(self, conn: sqlite3.Connection) -> None:
+    def __init__(self, db_name: str) -> None:
+        self.db_name = db_name
         self._schema = None
         self._query = QueryInterface()
-        self.conn = conn
         self.row_fabric = FabricRowFactory()
+
+    def __enter__(self):
+        try:
+            self.conn = sqlite3.connect(self.db_name)
+            return self
+
+        except ConnectionError as err:
+            raise err
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        try:
+            if self.conn:
+                self.conn.close()
+
+        except Exception:
+            raise Exception(exc_type, exc_val, exc_tb)
 
     @property
     def schema(self):
@@ -216,3 +232,20 @@ class DatabaseTableHandlerInterface(AbstractDatabaseTableHandlerInterface):
 
         finally:
             cursor.close()
+
+    def fill_in_the_table(self, fp_lst: List[str], create_table_list: List[str]):
+        [self.conn.execute(item) for item in create_table_list]
+        self.conn.commit()
+
+        for fp in fp_lst:
+            with open(fp, "r") as file:
+                self.conn.executescript(file.read())
+        self.conn.commit()
+
+    def clean_table(self, table_list: List[str]):
+        for table in table_list:
+            self.conn.execute(
+                "UPDATE `sqlite_sequence` SET `seq` = 0 WHERE `name` = '%s'" % table
+            )
+            self.conn.execute("DELETE FROM '%s'" % table)
+            self.conn.commit()
