@@ -38,10 +38,10 @@ all_tables = (
 def db_interface():
     table_list = ["device", "device_type", "device_company", "stock_device"]
     fp_lst = [
-        "stock_device_test.sql",
-        "device_test.sql",
-        "device_company_test.sql",
-        "device_type_test.sql",
+        "data_cache/stock_device_test.sql",
+        "data_cache/device_test.sql",
+        "data_cache/device_company_test.sql",
+        "data_cache/device_type_test.sql",
     ]
 
     create_table_list = [
@@ -63,10 +63,10 @@ def db_interface():
 def db_connect():
     table_list = ["device", "device_type", "device_company", "stock_device"]
     fp_lst = [
-        "stock_device_test.sql",
-        "device_test.sql",
-        "device_company_test.sql",
-        "device_type_test.sql",
+        "data_cache/stock_device_test.sql",
+        "data_cache/device_test.sql",
+        "data_cache/device_company_test.sql",
+        "data_cache/device_type_test.sql",
     ]
 
     create_table_list = [

@@ -22,10 +22,10 @@ logger.addHandler(logging.StreamHandler())
 
 def set_full_data():
     fp_lst = [
-        "stock_device.sql",
-        "device.sql",
-        "device_company.sql",
-        "device_type.sql",
+        "data_cache/stock_device.sql",
+        "data_cache/device.sql",
+        "data_cache/device_company.sql",
+        "data_cache/device_type.sql",
     ]
 
     create_table_list = [
