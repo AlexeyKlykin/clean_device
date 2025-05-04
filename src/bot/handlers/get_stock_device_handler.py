@@ -52,7 +52,7 @@ async def get_broken_device(message: Message, state: FSMContext):
     data = await state.get_data()
     devices = bot_api_db.bot_lst_broken_device_from_stockpile(data)
 
-    if devices:
+    if isinstance(devices, list):
         await message.answer(
             text="\n".join(
                 [
