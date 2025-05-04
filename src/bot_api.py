@@ -302,16 +302,14 @@ class APIBotDb(AbstractAPIBotDb):
                             TableRow("sd.at_clean_date"): RowValue(date),
                         }
                         stock_device = conn.get_items(where_data=where_mogrif_data)
-
-                        try:
+                        if stock_device:
                             return [
                                 item
                                 for item in stock_device
                                 if isinstance(item, StockBrokenDeviceData)
                             ]
-
-                        except AttributeError:
-                            return f"Не найден не один прибор за эту дату {date}"
+                        else:
+                            return "Не найдено не одного прибора в ремонте"
 
                     case {"at_clean_date": str(at_clean_date)}:
                         where_mogrif_data = {
@@ -319,14 +317,14 @@ class APIBotDb(AbstractAPIBotDb):
                         }
                         stock_device = conn.get_items(where_data=where_mogrif_data)
 
-                        try:
+                        if stock_device:
                             return [
                                 item
                                 for item in stock_device
                                 if isinstance(item, StockBrokenDeviceData)
                             ]
 
-                        except AttributeError:
+                        else:
                             return f"Не найдено не одного прибора в ремонте за эту дату {at_clean_date}"
 
                     case _:
