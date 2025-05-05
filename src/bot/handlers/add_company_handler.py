@@ -6,7 +6,7 @@ from aiogram.types import Message
 from aiogram.types import ReplyKeyboardRemove
 
 from src.bot.keyboard.keyboard_start import kb_start
-from src.bot_api import APIBotDb
+from src.bot_api import APIBotDb, BotHandlerException
 
 logging.basicConfig(
     level=logging.WARNING,
@@ -60,7 +60,7 @@ async def add_device_company(message: Message, state: FSMContext):
     try:
         await message.answer(f"<b>{result_job}</b>", reply_markup=kb_start)
 
-    except Exception as err:
+    except BotHandlerException as err:
         logger.warning(err)
         await message.answer(f"<code>{result_job}</code>", reply_markup=kb_start)
 

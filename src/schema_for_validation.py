@@ -7,6 +7,17 @@ from typing import Annotated, Callable, List, NewType, Type
 from pydantic import BaseModel, ConfigDict, Field
 
 
+class SchemaForValidation(Exception):
+    def __init__(self, *args: object) -> None:
+        if args:
+            self.message = args[0]
+        else:
+            self.message = None
+
+    def __str__(self) -> str:
+        return "SchemaForValidation, {0}".format(self.message)
+
+
 class AbstractTable(BaseModel):
     model_config = ConfigDict(strict=True, validate_by_name=True)
 
@@ -287,7 +298,7 @@ class FabricRowFactory:
                 case _:
                     raise ValueError(f"{self.schema_validate} нет соответствий")
         else:
-            raise Exception("Не передана схема")
+            raise SchemaForValidation("Не передана схема")
 
     @choice_row_factory.setter
     def choice_row_factory(self, schema: Type[AbstractTable]):

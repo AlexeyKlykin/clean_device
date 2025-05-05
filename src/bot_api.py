@@ -46,6 +46,17 @@ logger.addHandler(logging.StreamHandler())
 class TokenError(Exception): ...
 
 
+class BotHandlerException(Exception):
+    def __init__(self, *args: object) -> None:
+        if args:
+            self.message = args[0]
+        else:
+            self.message = None
+
+    def __str__(self) -> str:
+        return f"BotHandlerException, {0}".format(self.message)
+
+
 class APIBotDbException(Exception):
     def __init__(self, *args):
         if args:
