@@ -2,7 +2,7 @@ import os
 import sqlite3
 import logging
 
-from src.db_app import (
+from src.query_scheme import (
     CREATE_TABLE_DEVICE,
     CREATE_TABLE_DEVICE_COMPANY,
     CREATE_TABLE_DEVICE_TYPE,

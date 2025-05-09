@@ -1,4 +1,5 @@
 from aiogram import F, Router
+from aiogram.fsm.context import FSMContext
 from aiogram.types import Message
 from aiogram.filters import CommandStart
 
@@ -31,5 +32,6 @@ async def get_message(message: Message):
 
 
 @start_router.message(F.text == "/cancel")
-async def cancel(message: Message):
+async def cancel(message: Message, state: FSMContext):
     await message.answer(text="<i>Возврат назад</i>", reply_markup=kb_start)
+    await state.clear()

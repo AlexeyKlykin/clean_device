@@ -2,7 +2,7 @@ import logging
 from aiogram import Router, F
 from aiogram.types import Message
 
-from src.bot_api import APIBotDb
+from src.bot_api import run_api
 from src.bot.keyboard.keyboard_start import kb_start
 from src.schema_for_validation import (
     OutputDeviceCompanyTable,
@@ -22,7 +22,7 @@ logger.addHandler(logging.StreamHandler())
 other_components_router = Router()
 
 
-bot_api_db = APIBotDb()
+bot_api_db = run_api()
 
 
 @other_components_router.message(F.text == "/get_devices")

@@ -28,7 +28,7 @@ button_get = [
         KeyboardButton(text="/get_companies"),
         KeyboardButton(text="/get_types"),
     ],
-    [KeyboardButton(text="/mark_device")],
+    [KeyboardButton(text="/mark_device"), KeyboardButton(text="/stock_device_at_date")],
     [
         KeyboardButton(text="/cancel"),
     ],

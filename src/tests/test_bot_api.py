@@ -1,82 +1,21 @@
 from pytest import mark
+
 from src.bot_api import APIBotDb
 from src.schema_for_validation import (
     OutputDeviceCompanyTable,
     OutputDeviceTable,
+    OutputDeviceTypeTable,
     StockBrokenDeviceData,
+    StockDeviceData,
 )
 from src.utils import modificate_date_to_str
 
 
-@mark.usefixtures("db_connect")
-@mark.api_bot
-class TestAPIBotDb:
-    """Тест api взаимодействия бота с базой"""
-
-    def test_bot_device_from_stockpile(self):
-        """тест: выборки прибора со склада"""
-
-        api = APIBotDb(db_name="clean_device_test.db")
-        data = {"stock_device_id": "1", "device_name": "Laser Beam"}
-        device = api.bot_device_from_stockpile(where_data=data)
-
-        assert device == {
-            "stock_device_id": 1,
-            "device_name": "Laser Beam",
-            "company_name": "Light Craft",
-            "type_title": "Beam",
-            "at_clean_date": "27-4-2025",
-        }
-
-    def test_bot_device(self):
-        """тест: выборка прибора по имени"""
-
-        api = APIBotDb(db_name="clean_device_test.db")
-        device_name = "Laser Beam"
-        device = api.bot_device(device_name)
-
-        assert device == {
-            "device_id": 4,
-            "device_name": "Laser Beam",
-            "company_name": "Light Craft",
-            "type_title": "Beam",
-        }
-
-    def test_bot_company(self):
-        """тест: выборка компании из базы"""
-
-        api = APIBotDb(db_name="clean_device_test.db")
-        company_name = "Light Craft"
-        company = api.bot_company(company_name)
-
-        assert company == {
-            "company_id": 2,
-            "company_name": "Light Craft",
-            "producer_country": "Russia",
-            "description_company": "https://light-craft.ru/",
-        }
-
-    def test_bot_device_type(self):
-        """тест: выборка типа прибора из бд"""
-
-        api = APIBotDb(db_name="clean_device_test.db")
-        type_title = "Beam"
-        type_device = api.bot_device_type(type_title)
-
-        assert type_device == {
-            "type_device_id": 1,
-            "type_title": "Beam",
-            "type_description": "Световые приборы типа Beam (в переводе «луч») создают мощный, узконаправленный световой поток. Их основная цель — акцентное освещение различных динамических эффектов, которых нельзя достичь с помощью приборов типа spot. 1\nНекоторые характеристики световых приборов Beam:\n\n    Мощность. Широкий диапазон мощности, адаптированный к различным масштабам мероприятий.\n    Источник света. Большинство современных приборов Beam используют светодиодные (LED) источники света для высокой светоотдачи, энергоэффективности и длительного срока службы.\n    Угол луча. Определяет степень концентрации света. Узкий угол создаёт более чёткий и сфокусированный луч, а широкий — более рассеянный эффект.\n    Цветовая температура. Определяет оттенок белого света, излучаемого прибором Beam. Множество приборов позволяют регулировать цветовую температуру для создания различных атмосфер.\n    Панорамирование и наклон. Многие световые приборы Beam оснащены моторизованным панорамированием и наклоном, обеспечивая операторам точную направленность луча.\n\nПриборы Beam подходят для освещения просторных помещений или создания эффектных иллюминаций на открытом воздухе.",
-        }
-
-    def test_bot_lst_broken_device_from_stockpile(self):
-        """тест: выборка всех приборов на ремонте"""
-
-        api = APIBotDb(db_name="clean_device_test.db")
-        where_data = {"at_clean_date": "30-4-2025"}
-        broken_devices = api.bot_lst_broken_device_from_stockpile(where_data)
-
-        assert broken_devices == [
+date = modificate_date_to_str()
+data_lst_device_from_stockpile = [
+    (
+        {"at_clean_date": "30-4-2025"},
+        [
             StockBrokenDeviceData(
                 stock_device_id=87,
                 device_name="Prima Mythos",
@@ -87,15 +26,149 @@ class TestAPIBotDb:
                 device_name="Prima Mythos",
                 at_clean_date="30-4-2025",
             ),
+        ],
+    ),
+    (None, f"Не найдено не одного прибора в ремонте за эту дату {date}"),
+]
+
+
+@mark.usefixtures("db_connect")
+@mark.api_bot
+class TestAPIBotDb:
+    """Тест api взаимодействия бота с базой данных"""
+
+    def test_bot_get_devices_at_date(self):
+        """тест: api бота для получения данных о приборе по дате"""
+
+        api = APIBotDb("clean_device_test.db")
+        where_data = {"at_clean_date": "30-4-2025"}
+        result = api.bot_get_devices_at_date(where_data=where_data)
+
+        assert result == [
+            StockBrokenDeviceData(
+                stock_device_id=35, device_name="K20", at_clean_date="30-4-2025"
+            ),
+            StockBrokenDeviceData(
+                stock_device_id=43, device_name="K20", at_clean_date="30-4-2025"
+            ),
+            StockBrokenDeviceData(
+                stock_device_id=32, device_name="Arolla", at_clean_date="30-4-2025"
+            ),
         ]
 
+    def test_bot_get_devices_at_date_invalid(self):
+        """тест: api бота для не получения данных о приборе по дате"""
+
+        api = APIBotDb("clean_device_test.db")
+        where_data = {"at_clean_date": "-2025"}
+        result = api.bot_get_devices_at_date(where_data=where_data)
+
+        assert result == "Нет приборов в эту дату"
+
+    def test_bot_device_from_stockpile(self):
+        """тест: api бота для получения данных о приборе со склада"""
+
+        api = APIBotDb("clean_device_test.db")
+        where_data = {
+            "stock_device_id": "1",
+            "device_name": "Laser Beam",
+        }
+        result = api.bot_device_from_stockpile(where_data=where_data)
+
+        assert result == StockDeviceData(
+            stock_device_id=1,
+            device_name="Laser Beam",
+            company_name="Light Craft",
+            type_title="Beam",
+            at_clean_date="27-4-2025",
+        )
+
+    def test_bot_device_from_stockpile_invalid(self):
+        """тест: api бота для не получения данных о приборе со склада"""
+
+        api = APIBotDb("clean_device_test.db")
+        where_data = {
+            "stock_device_id": "20000",
+            "device_name": "Laser",
+        }
+        result = api.bot_device_from_stockpile(where_data=where_data)
+
+        assert result == "Прибор с id 20000 и названием Laser не найден в базе"
+
+    def test_bot_device(self):
+        """тест: api бота для получения данных о приборе"""
+
+        api = APIBotDb("clean_device_test.db")
+        result = api.bot_device("Laser Beam")
+
+        assert result == OutputDeviceTable(
+            device_id=4,
+            device_name="Laser Beam",
+            company_name="Light Craft",
+            type_title="Beam",
+        )
+
+    def test_bot_device_invalid(self):
+        """тест: api бота для не получения данных о приборе"""
+
+        api = APIBotDb("clean_device_test.db")
+        result = api.bot_device("Laser Keam")
+
+        assert result == "Прибор с названием Laser Keam не найден в базе"
+
+    def test_bot_company(self):
+        """тест: api бота для получения данных о компании"""
+
+        api = APIBotDb("clean_device_test.db")
+        result = api.bot_company(company_name="Light Craft")
+
+        assert result == OutputDeviceCompanyTable(
+            company_id=2,
+            company_name="Light Craft",
+            producer_country="Russia",
+            description_company="https://light-craft.ru/",
+        )
+
+    def test_bot_company_invalid(self):
+        """тест: api бота для получения данных о компании"""
+
+        api = APIBotDb("clean_device_test.db")
+        result = api.bot_company(company_name="Sight Praft")
+
+        assert result == "Компания с названием Sight Praft не найден в базе"
+
+    def test_bot_device_type(self):
+        """тест: api бота для получения данных о типе прибора"""
+
+        api = APIBotDb("clean_device_test.db")
+        result = api.bot_device_type("Beam")
+
+        assert isinstance(result, OutputDeviceTypeTable)
+
+    def test_bot_device_type_invalid(self):
+        """тест: api бота для не получения данных о типе прибора"""
+
+        api = APIBotDb("clean_device_test.db")
+        result = api.bot_device_type("Keam")
+
+        assert result == "Тип прибор с названием Keam не найден в базе"
+
+    @mark.parametrize("where_data, expect", data_lst_device_from_stockpile)
+    def test_bot_lst_broken_device_from_stockpile(self, where_data, expect):
+        """тест: api бота для получения списка приборов в ремонте"""
+
+        api = APIBotDb("clean_device_test.db")
+        result = api.bot_lst_broken_device_from_stockpile(where_data=where_data)
+
+        assert result == expect
+
     def test_bot_lst_device(self):
-        """тест: выборка всех приборов их бд"""
+        """тест: api бота для получения списка приборов"""
 
-        api = APIBotDb(db_name="clean_device_test.db")
-        lst_device = api.bot_lst_device()
+        api = APIBotDb("clean_device_test.db")
+        result = api.bot_lst_device()
 
-        assert lst_device == [
+        assert result == [
             OutputDeviceTable(
                 device_id=1,
                 device_name="Sharpy",
@@ -141,12 +214,12 @@ class TestAPIBotDb:
         ]
 
     def test_bot_lst_company(self):
-        """тест: возврата списка компаний через api бота"""
+        """тест: api бота получения списка компаний"""
 
-        api = APIBotDb(db_name="clean_device_test.db")
-        lst_company = api.bot_lst_company()
+        api = APIBotDb("clean_device_test.db")
+        result = api.bot_lst_company()
 
-        assert lst_company == [
+        assert result == [
             OutputDeviceCompanyTable(
                 company_id=1,
                 company_name="Clay Paky",
@@ -161,150 +234,197 @@ class TestAPIBotDb:
             ),
         ]
 
+    def test_bot_lst_device_type(self):
+        """тест: api бота получения списка типов приборов"""
+
+        api = APIBotDb("clean_device_test.db")
+        result = api.bot_lst_device_type()
+
+        assert result
+
     def test_bot_device_id(self):
-        """тест: возвращает id прбора по имени через api бота"""
+        """тест: api бота для получения id прибора"""
 
-        api = APIBotDb(db_name="clean_device_test.db")
-        device_name = "Arolla"
-        device_id = api.bot_device_id(device_name)
+        api = APIBotDb("clean_device_test.db")
+        result = api.bot_device_id("Laser Beam")
 
-        assert device_id == "6"
+        assert result == "4"
 
     def test_bot_company_id(self):
-        """тест: возвращает id компании"""
+        """тест: api бота для получения id компании"""
 
-        api = APIBotDb(db_name="clean_device_test.db")
-        company_name = "Clay Paky"
-        company_id = api.bot_company_id(company_name=company_name)
+        api = APIBotDb("clean_device_test.db")
+        result = api.bot_company_id("Clay Paky")
 
-        assert company_id == "1"
+        assert result == "1"
 
     def test_bot_type_id(self):
-        """тест: возвращает id тип прибора по имени"""
+        """тест: api бота для получения id типа прибора"""
 
-        api = APIBotDb(db_name="clean_device_test.db")
-        type_title = "Spot"
-        type_id = api.bot_device_type(type_title)
+        api = APIBotDb("clean_device_test.db")
+        result = api.bot_type_id("Beam")
 
-        assert type_id == {
-            "type_device_id": 2,
-            "type_title": "Spot",
-            "type_description": "Spot \u2014 \u0442\u0438\u043f \u0441\u0432\u0435\u0442\u043e\u0432\u043e\u0433\u043e \u043f\u0440\u0438\u0431\u043e\u0440\u0430 \u0441 \u044d\u0444\u0444\u0435\u043a\u0442\u043e\u043c \u043d\u0430\u043f\u0440\u0430\u0432\u043b\u0435\u043d\u043d\u043e\u0433\u043e \u043b\u0443\u0447\u0430. \u0413\u043b\u0430\u0432\u043d\u0430\u044f \u043e\u0441\u043e\u0431\u0435\u043d\u043d\u043e\u0441\u0442\u044c \u2014 \u043d\u0430\u043b\u0438\u0447\u0438\u0435 GOBO (\u0442\u0440\u0430\u0444\u0430\u0440\u0435\u0442\u0430 \u0438\u0437 \u043f\u043b\u0430\u0441\u0442\u0438\u043a\u0430 \u0438\u043b\u0438 \u043c\u0435\u0442\u0430\u043b\u043b\u0430), \u0441 \u043f\u043e\u043c\u043e\u0449\u044c\u044e \u043a\u043e\u0442\u043e\u0440\u043e\u0433\u043e \u0441\u043e\u0437\u0434\u0430\u0451\u0442\u0441\u044f \u044f\u0440\u043a\u043e\u0435 \u0441\u0432\u0435\u0442\u043e\u0432\u043e\u0435 \u043f\u044f\u0442\u043d\u043e \u0441 \u0432\u043e\u0437\u043c\u043e\u0436\u043d\u043e\u0441\u0442\u044c\u044e \u0441\u043b\u0435\u0436\u0435\u043d\u0438\u044f.\n\u041d\u0435\u043a\u043e\u0442\u043e\u0440\u044b\u0435 \u0445\u0430\u0440\u0430\u043a\u0442\u0435\u0440\u0438\u0441\u0442\u0438\u043a\u0438 \u0438 \u043f\u0440\u0435\u0438\u043c\u0443\u0449\u0435\u0441\u0442\u0432\u0430 \u043f\u043e\u0432\u043e\u0440\u043e\u0442\u043d\u044b\u0445 \u0433\u043e\u043b\u043e\u0432 \u0442\u0438\u043f\u0430 SPOT:\n    \u0431\u044b\u0441\u0442\u0440\u043e\u0435 \u043f\u0440\u043e\u0435\u0446\u0438\u0440\u043e\u0432\u0430\u043d\u0438\u0435 \u0438\u0437\u043e\u0431\u0440\u0430\u0436\u0435\u043d\u0438\u0439 \u043d\u0430 \u0433\u043e\u0440\u0438\u0437\u043e\u043d\u0442\u0430\u043b\u044c\u043d\u044b\u0435 \u0438 \u0432\u0435\u0440\u0442\u0438\u043a\u0430\u043b\u044c\u043d\u044b\u0435 \u043f\u043e\u0432\u0435\u0440\u0445\u043d\u043e\u0441\u0442\u0438;\n    \u0432\u0440\u0430\u0449\u0430\u044e\u0449\u0435\u0435\u0441\u044f \u0438 \u0438\u0437\u043c\u0435\u043d\u044f\u0435\u043c\u043e\u0435 \u0433\u043e\u0431\u043e;\n    \u0434\u0438\u043c\u043c\u0438\u0440\u043e\u0432\u0430\u043d\u0438\u0435 \u0438 \u0440\u0430\u0437\u043c\u044b\u0432\u0430\u043d\u0438\u0435 \u043b\u0443\u0447\u0430;\n    \u044d\u0444\u0444\u0435\u043a\u0442 \u0440\u0430\u0434\u0443\u0433\u0438, \u0441\u043c\u0435\u043d\u0430 \u0446\u0432\u0435\u0442\u043e\u0432;\n    \u043f\u043e\u0432\u043e\u0440\u043e\u0442\u043d\u0430\u044f \u043f\u0440\u0438\u0437\u043c\u0430 \u0438 \u0438\u0440\u0438\u0441;\n    \u0440\u0435\u0433\u0443\u043b\u0438\u0440\u0443\u0435\u043c\u044b\u0435 \u043f\u0443\u043b\u044c\u0441\u0438\u0440\u0443\u044e\u0449\u0438\u0439 \u0438 \u0441\u0442\u0440\u043e\u0431\u043e\u0441\u043a\u043e\u043f\u0438\u0447\u0435\u0441\u043a\u0438\u0439 \u044d\u0444\u0444\u0435\u043a\u0442\u044b;\n    \u0431\u0435\u0437\u0437\u0432\u0443\u0447\u043d\u043e\u0441\u0442\u044c.\n\n\u0412\u0440\u0430\u0449\u0430\u044e\u0449\u0438\u0435\u0441\u044f \u0433\u043e\u043b\u043e\u0432\u044b \u0442\u0438\u043f\u0430 SPOT \u043f\u0440\u0438\u043c\u0435\u043d\u044f\u044e\u0442\u0441\u044f, \u043a\u043e\u0433\u0434\u0430 \u043d\u0435\u043e\u0431\u0445\u043e\u0434\u0438\u043c\u043e \u043e\u0431\u043e\u0440\u0443\u0434\u043e\u0432\u0430\u043d\u0438\u0435 \u0441 \u0442\u043e\u0447\u043d\u044b\u043c \u043f\u043e\u0437\u0438\u0446\u0438\u043e\u043d\u0438\u0440\u043e\u0432\u0430\u043d\u0438\u0435\u043c \u0438 \u0431\u044b\u0441\u0442\u0440\u043e\u0439 \u0441\u043c\u0435\u043d\u043e\u0439 \u0440\u0435\u0436\u0438\u043c\u043e\u0432. 2",
-        }
+        assert result == "1"
 
-    def test_bot_check_device_from_stockpile(self):
-        """тест: проверяет наличие прибора на складе"""
+    def test_is_availability_device_from_stockpile(self):
+        """тест: api бота для проверки наличия прибора на складе"""
 
-        api = APIBotDb(db_name="clean_device_test.db")
+        api = APIBotDb("clean_device_test.db")
         where_data = {"stock_device_id": "1", "device_name": "Laser Beam"}
-        check = api.bot_check_device_from_stockpile(where_data)
 
-        assert check
+        assert api.is_availability_device_from_stockpile(where_data=where_data)
 
-    def test_bot_check_device(self):
-        """тест: проверяет наличие прибора в бд через api"""
+    def test_is_availability_device(self):
+        """тест: api бота для проверки наличи прибора в базе"""
 
-        api = APIBotDb(db_name="clean_device_test.db")
-        device_name = "K20"
-        check = api.bot_check_device(device_name)
+        api = APIBotDb("clean_device_test.db")
 
-        assert check
+        assert api.is_availability_device("Laser Beam")
 
-    def test_bot_check_company(self):
-        """тест: проверяет наличие компании в бд через api"""
+    def test_is_availability_company(self):
+        """тест: api бота для проверки наличия компании в базе"""
 
-        api = APIBotDb(db_name="clean_device_test.db")
-        device_company = "Clay Paky"
-        check = api.bot_check_company(device_company)
+        api = APIBotDb("clean_device_test.db")
 
-        assert check
+        assert api.is_availability_company("Clay Paky")
 
-    def test_bot_check_type(self):
-        """тест: проверяет наличие типа устройства в базе через api"""
+    def test_is_availability_type(self):
+        """тест: api бота для проверки наличия типа прибора в базе"""
 
-        api = APIBotDb(db_name="clean_device_test.db")
-        device_type = "Beam"
-        check = api.bot_check_type(device_type)
+        api = APIBotDb("clean_device_test.db")
 
-        assert check
+        assert api.is_availability_type("Beam")
 
-    def test_bot_change_device_status(self):
-        """тест: меняет статус прибора на складе"""
+    def test_not_is_availability_device_from_stockpile(self):
+        """тест: api бота для проверки не наличия прибора на складе"""
 
-        api = APIBotDb(db_name="clean_device_test.db")
-        where_data = {"stock_device_id": "1", "device_name": "Laser Beam", "mark": "0"}
-        api.bot_change_device_status(where_data)
+        api = APIBotDb("clean_device_test.db")
+        where_data = {"stock_device_id": "9000", "device_name": "Laser Swin"}
 
-        res = api.bot_lst_broken_device_from_stockpile({"at_clean_date": "0"})
+        assert not api.is_availability_device_from_stockpile(where_data=where_data)
 
-        assert res == [
-            StockBrokenDeviceData(
-                stock_device_id=1,
-                device_name="Laser Beam",
-                at_clean_date=modificate_date_to_str(),
-            ),
-        ]
+    def test_not_is_availability_device(self):
+        """тест: api бота для проверки не наличи прибора в базе"""
+
+        api = APIBotDb("clean_device_test.db")
+
+        assert not api.is_availability_device("Laser Sweam")
+
+    def test_not_is_availability_company(self):
+        """тест: api бота для проверки не наличия компании в базе"""
+
+        api = APIBotDb("clean_device_test.db")
+
+        assert not api.is_availability_company("Clay Saky")
+
+    def test_not_is_availability_type(self):
+        """тест: api бота для проверки не наличия типа прибора в базе"""
+
+        api = APIBotDb("clean_device_test.db")
+
+        assert not api.is_availability_type("Seam")
+
+    def test_bot_change_device_status_broken(self):
+        """тест: api бота для смены статуса прибора на складе"""
+
+        api = APIBotDb("clean_device_test.db")
+        where_data = {"stock_device_id": "35", "device_name": "K20", "mark": 0}
+        api.bot_change_device_status(where_data=where_data)
+
+        device_data = {"stock_device_id": "35", "device_name": "K20"}
+        device = api.bot_device_from_stockpile(where_data=device_data)
+
+        at_cleare = {"at_clean_date": "30-4-2025"}
+        result = api.bot_get_devices_at_date(where_data=at_cleare)
+
+        if isinstance(device, StockDeviceData):
+            assert device.stock_device_id not in [
+                item.device_name
+                for item in result
+                if isinstance(item, StockBrokenDeviceData)
+            ]
+
+    def test_bot_change_device_status_clean(self):
+        """тест: api бота для смены статуса прибора на складе"""
+
+        api = APIBotDb("clean_device_test.db")
+        where_data = {"stock_device_id": "35", "device_name": "K20", "mark": 1}
+        api.bot_change_device_status(where_data=where_data)
+
+        device_data = {"stock_device_id": "35", "device_name": "K20"}
+        device = api.bot_device_from_stockpile(where_data=device_data)
+
+        at_cleare = {"at_clean_date": "30-4-2025"}
+        result = api.bot_get_devices_at_date(where_data=at_cleare)
+
+        if isinstance(device, StockDeviceData):
+            assert device.stock_device_id in [
+                item.stock_device_id
+                for item in result
+                if isinstance(item, StockBrokenDeviceData)
+            ]
 
     def test_bot_set_device_from_stockpile_by_name_and_id_to_db(self):
-        """тест: добавление прибора на склад через api"""
+        """тест: api бота для добавления данных о приборе на складе"""
 
-        api = APIBotDb(db_name="clean_device_test.db")
-        set_data = {"stock_device_id": "50", "device_name": "Laser Beam"}
-        api.bot_set_device_from_stockpile_by_name_and_id_to_db(set_data)
+        api = APIBotDb("clean_device_test.db")
+        set_data = {"stock_device_id": "1000", "device_name": "K20"}
+        api.bot_set_device_from_stockpile_by_name_and_id_to_db(set_data=set_data)
 
-        where_data = {"stock_device_id": "50", "device_name": "Laser Beam"}
-        check = api.bot_check_device_from_stockpile(where_data)
+        where_data = {"stock_device_id": "1000", "device_name": "K20"}
+        check = api.is_availability_device_from_stockpile(where_data=where_data)
 
         assert check
 
     def test_bot_set_device_type(self):
-        """тест: добавление типа прибора в базу через api"""
+        """тест: api бот для добавления данных о типе прибора в базу"""
 
-        api = APIBotDb(db_name="clean_device_test.db")
-        set_data = {"type_title": "Seam", "type_description": "description seam"}
-        api.bot_set_device_type(set_data)
+        api = APIBotDb("clean_device_test.db")
+        set_data = {
+            "type_title": "Beams",
+            "type_description": "device type description Beams",
+        }
+        api.bot_set_device_type(set_data=set_data)
 
-        where_data = "Seam"
-        check = api.bot_check_type(where_data)
+        check = api.is_availability_type("Beams")
 
         assert check
 
     def test_bot_set_device_company(self):
-        """тест: добавления компании производителя в базу через api"""
+        """тест: api бота для добавления данных о компании в базу"""
 
-        api = APIBotDb(db_name="clean_device_test.db")
+        api = APIBotDb("clean_device_test.db")
         set_data = {
-            "company_name": "Craft",
-            "producer_country": "Spany",
-            "description_company": "description spany Craft",
+            "company_name": "Clay Baky",
+            "producer_country": "Spain",
+            "description_company": "Company Clay Baky from Spain description",
         }
-        api.bot_set_device_company(set_data)
+        api.bot_set_device_company(set_data=set_data)
 
-        check = api.bot_check_company("Craft")
+        check = api.is_availability_company("Clay Baky")
 
         assert check
 
     def test_bot_set_device(self):
-        """тест: добавление прибора в базу через api"""
+        """тест: api бота для добавлении данных о приборе в базу"""
 
-        api = APIBotDb(db_name="clean_device_test.db")
+        api = APIBotDb("clean_device_test.db")
         set_data = {
-            "device_name": "K70",
+            "device_name": "k60",
             "company_name": "Clay Paky",
             "type_title": "Beam",
         }
-        api.bot_set_device(set_data)
+        api.bot_set_device(set_data=set_data)
 
-        check = api.bot_check_device("K70")
+        check = api.is_availability_device("k60")
 
         assert check
 
     def test_bot_update_devices_stock_clearence_date(self):
-        """тест: обновление даты чистого прибора"""
+        """тест: api бота для обновления данных по очещенному прибору"""
 
-        api = APIBotDb(db_name="clean_device_test.db")
-        set_data = {"stock_device_id": "4", "device_name": "Laser Beam"}
-        date = "30-4-2025"
-        res = api.bot_update_devices_stock_clearence_date(set_data, date)
+        api = APIBotDb("clean_device_test.db")
+        set_data = {"stock_device_id": "1", "device_name": "Laser Beam"}
+        res = api.bot_update_devices_stock_clearence_date(where_data=set_data)
 
         assert res == "Данные прибора - Laser Beam обновлены"

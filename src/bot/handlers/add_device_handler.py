@@ -9,7 +9,7 @@ from src.bot.keyboard.keyboard_start import kb_start, kb_add
 from src.bot_api import (
     DeviceTypeCallback,
     DeviceCompanyCallback,
-    APIBotDb,
+    run_api,
     Marker,
 )
 
@@ -24,7 +24,7 @@ logger.addHandler(logging.StreamHandler())
 
 device_router = Router()
 
-bot_api_db = APIBotDb()
+bot_api_db = run_api()
 
 
 class AddDevice(StatesGroup):

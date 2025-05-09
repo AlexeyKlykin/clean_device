@@ -6,7 +6,7 @@ from abc import ABC, abstractmethod
 from enum import StrEnum
 import logging
 import os
-from typing import Dict, List, Literal
+from typing import Dict, Generic, List, Literal
 from aiogram import Bot, Dispatcher
 from aiogram.client.default import DefaultBotProperties
 from aiogram.fsm.storage.memory import MemoryStorage
@@ -15,23 +15,27 @@ from aiogram.types import InlineKeyboardMarkup
 from aiogram.utils.keyboard import InlineKeyboardBuilder
 from aiogram.filters.callback_data import CallbackData
 
-from src.data_resolve_interface import DatabaseTableHandlerInterface
+
 from src.schema_for_validation import (
-    DeviceCompanyTable,
-    DeviceTable,
-    DeviceTypeTable,
     OutputDeviceCompanyTable,
     OutputDeviceTable,
     OutputDeviceTypeTable,
     RowValue,
     StockBrokenDeviceData,
     StockDeviceData,
-    StockDeviceTable,
-    StockDeviceTableStatus,
+    Table,
     TableRow,
 )
 from src.secret import secrets
 from src.utils import modificate_date_to_str, validate_date
+from src.database_interface import DataBaseInterface
+from src.query_scheme import (
+    AbstractTableQueryScheme,
+    QuerySchemeForDeviceType,
+    QuerySchemeForDevice,
+    QuerySchemeForStockDevice,
+    QuerySchemeForDeviceCompany,
+)
 
 
 logging.basicConfig(
@@ -111,7 +115,7 @@ class DeviceCallback(CallbackData, prefix="device"):
 type Status = Literal["0", "1"]
 
 
-class AbstractAPIBotDb(ABC):
+class AbstractAPIBotDb(Generic[Table], ABC):
     @abstractmethod
     def bot_keyboard_device_lst(self) -> List[str] | str: ...
 
@@ -127,16 +131,16 @@ class AbstractAPIBotDb(ABC):
     @abstractmethod
     def bot_device_from_stockpile(
         self, where_data: Dict[str, str]
-    ) -> Dict[str, str] | str: ...
+    ) -> StockDeviceData | str: ...
 
     @abstractmethod
-    def bot_device(self, device_name: str | None) -> Dict[str, str] | str: ...
+    def bot_device(self, device_name: str | None) -> OutputDeviceTable | str: ...
 
     @abstractmethod
-    def bot_company(self, company_name: str) -> Dict[str, str] | str: ...
+    def bot_company(self, company_name: str) -> OutputDeviceCompanyTable | str: ...
 
     @abstractmethod
-    def bot_device_type(self, type_title: str) -> Dict[str, str] | str: ...
+    def bot_device_type(self, type_title: str) -> OutputDeviceTypeTable | str: ...
 
     @abstractmethod
     def bot_lst_broken_device_from_stockpile(
@@ -150,7 +154,7 @@ class AbstractAPIBotDb(ABC):
     def bot_lst_company(self) -> List[OutputDeviceCompanyTable] | str: ...
 
     @abstractmethod
-    def bot_lst_device_type(self) -> List[OutputDeviceTypeTable]: ...
+    def bot_lst_device_type(self) -> List[OutputDeviceTypeTable] | str: ...
 
     @abstractmethod
     def bot_device_id(self, device_name: str | None) -> str: ...
@@ -162,16 +166,18 @@ class AbstractAPIBotDb(ABC):
     def bot_type_id(self, type_title: str | None) -> str: ...
 
     @abstractmethod
-    def bot_check_device_from_stockpile(self, where_data: Dict[str, str]) -> bool: ...
+    def is_availability_device_from_stockpile(
+        self, where_data: Dict[str, str]
+    ) -> bool: ...
 
     @abstractmethod
-    def bot_check_device(self, device_name: str | None) -> bool: ...
+    def is_availability_device(self, device_name: str | None) -> bool: ...
 
     @abstractmethod
-    def bot_check_company(self, company_name: str | None) -> bool: ...
+    def is_availability_company(self, company_name: str | None) -> bool: ...
 
     @abstractmethod
-    def bot_check_type(self, type_title: str | None) -> bool: ...
+    def is_availability_type(self, type_title: str | None) -> bool: ...
 
     @abstractmethod
     def bot_change_device_status(self, where_data: Dict[str, str]) -> str | None: ...
@@ -192,25 +198,106 @@ class AbstractAPIBotDb(ABC):
 
     @abstractmethod
     def bot_update_devices_stock_clearence_date(
-        self, set_data: Dict[str, str], date: str | None = None
+        self, where_data: Dict[str, str], date: str | None = None
     ) -> str: ...
+
+    @abstractmethod
+    def bot_get_devices_at_date(
+        self, where_data: Dict[str, str]
+    ) -> List[StockBrokenDeviceData] | str: ...
+
+    @abstractmethod
+    def database_get_items(
+        self,
+        query: AbstractTableQueryScheme,
+        where_data: Dict[TableRow, RowValue] | None = None,
+    ) -> List[Table] | None: ...
+
+    @abstractmethod
+    def database_get_item(
+        self,
+        query: AbstractTableQueryScheme,
+        where_data: Dict[TableRow, RowValue] | None = None,
+    ) -> Table | None: ...
+
+    @abstractmethod
+    def database_set_item(self, query: AbstractTableQueryScheme, set_data: tuple): ...
 
 
 class APIBotDb(AbstractAPIBotDb):
-    def __init__(self, db_name: str | None = None) -> None:
-        if db_name:
-            self.db_name = db_name
-        else:
-            db_name = secrets["DB_NAME"]
-            if isinstance(db_name, str):
-                self.db_name = db_name
-            else:
-                self.db_name = os.environ.get("DB_NAME")
+    def __init__(self, db_name: str) -> None:
+        self.db_name = db_name
 
-    def bot_device_from_stockpile(
-        self, where_data: Dict[str, str]
-    ) -> Dict[str, str] | str:
+    def database_set_item(self, query, set_data):
+        query = query.query_set()
+
+        with DataBaseInterface(db_name=self.db_name) as conn:
+            cursor = conn.row_factory_for_connection(query[1])
+            conn.set(query=query[0], set_data=set_data, cursor=cursor)
+
+    def database_get_items(self, query, where_data=None):
+        if where_data:
+            query = query.query_get(where_data=where_data)
+
+        else:
+            query = query.query_get()
+
+        with DataBaseInterface(db_name=self.db_name) as conn:
+            cursor = conn.row_factory_for_connection(query[1])
+            return conn.get_all(query=query[0], cursor=cursor)
+
+    def database_get_item(self, query, where_data=None):
+        if where_data:
+            query = query.query_get(where_data=where_data)
+
+        else:
+            query = query.query_get()
+
+        with DataBaseInterface(db_name=self.db_name) as conn:
+            cursor = conn.row_factory_for_connection(query[1])
+            return conn.get(query=query[0], cursor=cursor)
+
+    def bot_get_devices_at_date(self, where_data):
+        with DataBaseInterface(db_name=self.db_name) as conn:
+            if validate_date(where_data["at_clean_date"]):
+                where_mogrif_data = {
+                    TableRow("sd.at_clean_date"): RowValue(where_data["at_clean_date"])
+                }
+                query = QuerySchemeForStockDevice().query_get_device_by_status(
+                    where_data=where_mogrif_data
+                )
+                cursor = conn.row_factory_for_connection(query[1])
+                stock_devices = conn.get_all(query=query[0], cursor=cursor)
+
+                if stock_devices and all(
+                    isinstance(item, StockBrokenDeviceData) for item in stock_devices
+                ):
+                    return stock_devices
+
+                else:
+                    return "Нет приборов в эту дату"
+
+            else:
+                date = modificate_date_to_str()
+                where_mogrif_data = {TableRow("sd.at_clean_date"): RowValue(date)}
+                query = QuerySchemeForStockDevice().query_get_device_by_status(
+                    where_data=where_mogrif_data
+                )
+                cursor = conn.row_factory_for_connection(query[1])
+                stock_devices = conn.get_all(query=query[0], cursor=cursor)
+
+                if stock_devices and all(
+                    isinstance(item, StockBrokenDeviceData) for item in stock_devices
+                ):
+                    return stock_devices
+
+                else:
+                    return "Нет приборов в эту дату"
+
+    def bot_device_from_stockpile(self, where_data):
         """метод для получение прибора со склада по id и названию"""
+
+        query = QuerySchemeForStockDevice()
 
         match where_data:
             case {
@@ -221,456 +308,292 @@ class APIBotDb(AbstractAPIBotDb):
                     TableRow("sd.stock_device_id"): RowValue(stock_device_id),
                     TableRow("d.device_name"): RowValue(device_name),
                 }
+                stock_device = self.database_get_item(
+                    where_data=where_mogrif_data, query=query
+                )
 
-                if self.db_name:
-                    with DatabaseTableHandlerInterface(db_name=self.db_name) as conn:
-                        conn.schema = StockDeviceData
-                        stock_device = conn.get_item(where_data=where_mogrif_data)
-                        try:
-                            return stock_device.model_dump()
-
-                        except AttributeError as err:
-                            logger.warning(err)
-                            return f"Прибор с id {stock_device_id} и названием {device_name} не найден в базе"
-
+                if isinstance(stock_device, StockDeviceData):
+                    return stock_device
                 else:
-                    raise APIBotDbException("Не верно указана база данных")
+                    return f"Прибор с id {stock_device_id} и названием {device_name} не найден в базе"
 
             case _:
                 return f"Данные {where_data} не прошли валидацию"
 
-    def bot_device(self, device_name: str | None) -> Dict[str, str] | str:
+    def bot_device(self, device_name):
         """метод для получения прибора по имени"""
 
+        query = QuerySchemeForDevice()
+
         if device_name:
             where_data = {TableRow("device_name"): RowValue(device_name)}
+            device = self.database_get_item(where_data=where_data, query=query)
 
-            if self.db_name:
-                with DatabaseTableHandlerInterface(db_name=self.db_name) as conn:
-                    conn.schema = OutputDeviceTable
-                    device = conn.get_item(where_data=where_data)
-                    try:
-                        return device.model_dump()
-
-                    except AttributeError as err:
-                        logger.warning(err)
-                        return f"Прибор с названием {device_name} не найден в базе"
+            if isinstance(device, OutputDeviceTable):
+                return device
 
             else:
-                raise APIBotDbException("Не верно указана база данных")
+                return f"Прибор с названием {device_name} не найден в базе"
 
         else:
             raise APIBotDbException("Не переданы аргументы")
 
-    def bot_company(self, company_name: str) -> Dict[str, str] | str:
+    def bot_company(self, company_name):
         """метод для получения данных о компании производителе"""
 
+        query = QuerySchemeForDeviceCompany()
+
         if company_name:
             where_data = {TableRow("company_name"): RowValue(company_name)}
+            company = self.database_get_item(where_data=where_data, query=query)
 
-            if self.db_name:
-                with DatabaseTableHandlerInterface(db_name=self.db_name) as conn:
-                    conn.schema = OutputDeviceCompanyTable
-                    company = conn.get_item(where_data=where_data)
-                    try:
-                        return company.model_dump()
-
-                    except AttributeError as err:
-                        logger.warning(err)
-                        return f"Компания с названием {company_name} не найден в базе"
+            if isinstance(company, OutputDeviceCompanyTable):
+                return company
 
             else:
-                raise APIBotDbException("Не верно указана база данных")
+                return f"Компания с названием {company_name} не найден в базе"
 
         else:
             raise APIBotDbException("Не переданы аргументы")
 
-    def bot_device_type(self, type_title: str) -> Dict[str, str] | str:
+    def bot_device_type(self, type_title):
         """метод для получения данных о типе прибора"""
+
+        query = QuerySchemeForDeviceType()
 
         if type_title:
             where_data = {TableRow("type_title"): RowValue(type_title)}
+            device_type = self.database_get_item(where_data=where_data, query=query)
 
-            if self.db_name:
-                with DatabaseTableHandlerInterface(db_name=self.db_name) as conn:
-                    conn.schema = OutputDeviceTypeTable
-                    device_type = conn.get_item(where_data=where_data)
-                    try:
-                        return device_type.model_dump()
-
-                    except AttributeError as err:
-                        logger.warning(err)
-                        return f"Тип прибор с названием {type_title} не найден в базе"
+            if isinstance(device_type, OutputDeviceTypeTable):
+                return device_type
 
             else:
-                raise APIBotDbException("Не верно указана база данных")
+                return f"Тип прибор с названием {type_title} не найден в базе"
 
         else:
             raise APIBotDbException("Не переданы аргументы")
 
-    def bot_lst_broken_device_from_stockpile(
-        self, where_data: Dict[str, str] | None = None
-    ) -> List[StockBrokenDeviceData] | str:
+    def bot_lst_broken_device_from_stockpile(self, where_data=None):
         """метод для получения всех приборов со склада"""
 
-        if self.db_name:
-            with DatabaseTableHandlerInterface(db_name=self.db_name) as conn:
-                conn.schema = StockBrokenDeviceData
+        with DataBaseInterface(db_name=self.db_name) as conn:
+            if where_data and validate_date(where_data["at_clean_date"]):
+                where_mogrif_data = {
+                    TableRow("sd.at_clean_date"): RowValue(where_data["at_clean_date"]),
+                }
+                query = QuerySchemeForStockDevice().query_get_device_by_status(
+                    where_data=where_mogrif_data, status="0"
+                )
+                cursor = conn.row_factory_for_connection(query[1])
+                stock_devices = conn.get_all(query=query[0], cursor=cursor)
 
-                match where_data:
-                    case {"at_clean_date": "0"}:
-                        date = modificate_date_to_str()
-                        where_mogrif_data = {
-                            TableRow("sd.at_clean_date"): RowValue(date),
-                        }
-                        stock_device = conn.get_items(where_data=where_mogrif_data)
+                if stock_devices and all(
+                    isinstance(item, StockBrokenDeviceData) for item in stock_devices
+                ):
+                    return stock_devices
 
-                        if stock_device:
-                            return [
-                                item
-                                for item in stock_device
-                                if isinstance(item, StockBrokenDeviceData)
-                            ]
+                else:
+                    return f"Не найдено не одного прибора в ремонте за эту дату {where_data['at_clean_date']}"
 
-                        else:
-                            return "Не найдено не одного прибора в ремонте"
+            else:
+                date = modificate_date_to_str()
+                where_mogrif_data = {
+                    TableRow("sd.at_clean_date"): RowValue(date),
+                }
+                query = QuerySchemeForStockDevice().query_get_device_by_status(
+                    where_data=where_mogrif_data, status="0"
+                )
+                cursor = conn.row_factory_for_connection(query[1])
+                stock_devices = conn.get_all(query=query[0], cursor=cursor)
 
-                    case {"at_clean_date": str(at_clean_date)}:
-                        where_mogrif_data = {
-                            TableRow("sd.at_clean_date"): RowValue(at_clean_date),
-                        }
-                        stock_device = conn.get_items(where_data=where_mogrif_data)
+                if stock_devices and all(
+                    isinstance(item, StockBrokenDeviceData) for item in stock_devices
+                ):
+                    return stock_devices
 
-                        if stock_device:
-                            return [
-                                item
-                                for item in stock_device
-                                if isinstance(item, StockBrokenDeviceData)
-                            ]
+                else:
+                    return f"Не найдено не одного прибора в ремонте за эту дату {date}"
 
-                        else:
-                            return f"Не найдено не одного прибора в ремонте за эту дату {at_clean_date}"
-
-                    case _:
-                        return "Нет приборов на обработку"
-        else:
-            raise APIBotDbException("Не верно указана база данных")
-
-    def bot_lst_device(self) -> List[OutputDeviceTable] | str:
+    def bot_lst_device(self):
         """метод для получения всего списка приборов"""
 
-        if self.db_name:
-            with DatabaseTableHandlerInterface(db_name=self.db_name) as conn:
-                conn.schema = OutputDeviceTable
-                device = conn.get_items()
+        query = QuerySchemeForDevice()
+        devices = self.database_get_items(query=query)
 
-                try:
-                    return [
-                        item for item in device if isinstance(item, OutputDeviceTable)
-                    ]
-
-                except AttributeError:
-                    return "Не найдены приборы"
+        if devices and all(isinstance(item, OutputDeviceTable) for item in devices):
+            return devices
 
         else:
-            raise APIBotDbException("Не верно указана база данных")
+            return "Приборы не найдены"
 
-    def bot_lst_company(self) -> List[OutputDeviceCompanyTable] | str:
+    def bot_lst_company(self):
         """метод для получения всех компаний производителей"""
 
-        if self.db_name:
-            with DatabaseTableHandlerInterface(db_name=self.db_name) as conn:
-                conn.schema = OutputDeviceCompanyTable
-                company = conn.get_items()
+        query = QuerySchemeForDeviceCompany()
+        companys = self.database_get_items(query=query)
 
-                try:
-                    return [
-                        item
-                        for item in company
-                        if isinstance(item, OutputDeviceCompanyTable)
-                    ]
-
-                except AttributeError:
-                    return "Не найден прибор"
+        if companys and all(
+            isinstance(item, OutputDeviceCompanyTable) for item in companys
+        ):
+            return companys
 
         else:
-            raise APIBotDbException("Не верно указана база данных")
+            return "Производитель не найден"
 
-    def bot_lst_device_type(self) -> List[OutputDeviceTypeTable]:
+    def bot_lst_device_type(self):
         """метод получения всех типов приборов"""
 
-        if self.db_name:
-            with DatabaseTableHandlerInterface(db_name=self.db_name) as conn:
-                conn.schema = OutputDeviceTypeTable
-                device_type = conn.get_items()
-                return [
-                    item
-                    for item in device_type
-                    if isinstance(item, OutputDeviceTypeTable)
-                ]
+        query = QuerySchemeForDeviceType()
+        device_types = self.database_get_items(query=query)
+
+        if device_types and all(
+            isinstance(item, OutputDeviceTypeTable) for item in device_types
+        ):
+            return device_types
 
         else:
-            raise APIBotDbException("Не верно указана база данных")
+            return "Типы приборов не найдены"
 
-    def bot_device_id(self, device_name: str | None) -> str:
+    def bot_device_id(self, device_name):
         """метод для получения id прибора"""
+
+        query = QuerySchemeForDevice()
 
         if device_name:
             where_data = {TableRow("device_name"): RowValue(device_name)}
+            device = self.database_get_item(where_data=where_data, query=query)
 
-            if self.db_name:
-                with DatabaseTableHandlerInterface(db_name=self.db_name) as conn:
-                    conn.schema = OutputDeviceTable
-                    device = conn.get_item(where_data=where_data)
-
-                    if isinstance(device, OutputDeviceTable):
-                        return str(device.device_id)
-
-                    else:
-                        return f"В списке приборов по имени {device_name} не чего не нашлось"
+            if isinstance(device, OutputDeviceTable):
+                return str(device.device_id)
 
             else:
-                raise APIBotDbException("Не верно указана база данных")
+                return f"В списке приборов по имени {device_name} не чего не нашлось"
 
         else:
             raise APIBotDbException("Не переданы аргументы")
 
-    def bot_company_id(self, company_name: str | None) -> str:
+    def bot_company_id(self, company_name):
         """метод для получения id компании производителя"""
+
+        query = QuerySchemeForDeviceCompany()
 
         if company_name:
             where_data = {TableRow("company_name"): RowValue(company_name)}
+            company = self.database_get_item(where_data=where_data, query=query)
 
-            if self.db_name:
-                with DatabaseTableHandlerInterface(db_name=self.db_name) as conn:
-                    conn.schema = OutputDeviceCompanyTable
-                    company = conn.get_item(where_data=where_data)
-
-                    if isinstance(company, OutputDeviceCompanyTable):
-                        return str(company.company_id)
-                    else:
-                        return f"В списке компаний по имени {company_name} не чего не найдено"
+            if isinstance(company, OutputDeviceCompanyTable):
+                return str(company.company_id)
 
             else:
-                raise APIBotDbException("Не верно указана база данных")
+                return f"В списке компаний по имени {company_name} не чего не найдено"
 
         else:
             raise APIBotDbException("Не переданы аргументы")
 
-    def bot_type_id(self, type_title: str | None) -> str:
+    def bot_type_id(self, type_title):
         """метод для получения всех типов приборов по названию типа"""
+
+        query = QuerySchemeForDeviceType()
 
         if type_title:
             where_data = {TableRow("type_title"): RowValue(type_title)}
+            device_type = self.database_get_item(where_data=where_data, query=query)
 
-            if self.db_name:
-                with DatabaseTableHandlerInterface(db_name=self.db_name) as conn:
-                    conn.schema = OutputDeviceTypeTable
-                    device_type = conn.get_item(where_data=where_data)
-
-                    if isinstance(device_type, OutputDeviceTypeTable):
-                        return str(device_type.type_device_id)
-                    else:
-                        return f"В списке типов по названию {type_title} не чего не найдено"
+            if isinstance(device_type, OutputDeviceTypeTable):
+                return str(device_type.type_device_id)
 
             else:
-                raise APIBotDbException("Не верно указана база данных")
+                return f"В списке типов по названию {type_title} не чего не найдено"
 
         else:
             raise APIBotDbException("Не переданы аргументы")
 
-    def bot_check_device_from_stockpile(self, where_data: Dict[str, str]) -> bool:
+    def is_availability_device_from_stockpile(self, where_data):
         """метод проверки наличия прибора на складе"""
 
         check = False
+        query = QuerySchemeForStockDevice()
+
         match where_data:
             case {
                 "stock_device_id": str(stock_device_id),
                 "device_name": str(device_name),
             }:
                 where_mogrif_data = {
-                    TableRow("stock_device_id"): RowValue(stock_device_id),
-                    TableRow("device_name"): RowValue(device_name),
+                    TableRow("sd.stock_device_id"): RowValue(stock_device_id),
+                    TableRow("d.device_name"): RowValue(device_name),
                 }
+                stock_device = self.database_get_item(
+                    where_data=where_mogrif_data, query=query
+                )
 
-                if self.db_name:
-                    with DatabaseTableHandlerInterface(db_name=self.db_name) as conn:
-                        conn.schema = StockDeviceData
-                        stock_device = conn.get_item(where_data=where_mogrif_data)
-
-                        if isinstance(stock_device, StockDeviceData):
-                            check = True
-
-                else:
-                    raise APIBotDbException("Не верно указана база данных")
+                if isinstance(stock_device, StockDeviceData):
+                    check = True
 
             case _:
                 raise APIBotDbException(f"Данные {where_data} не прошли валидацию")
 
         return check
 
-    def bot_check_device(self, device_name: str | None) -> bool:
+    def is_availability_device(self, device_name):
         """метод проверки наличия прибора в базе"""
 
         check = False
+        query = QuerySchemeForDevice()
 
         if device_name:
             where_data = {TableRow("device_name"): RowValue(device_name)}
+            device = self.database_get_item(where_data=where_data, query=query)
 
-            if self.db_name:
-                with DatabaseTableHandlerInterface(db_name=self.db_name) as conn:
-                    conn.schema = OutputDeviceTable
-                    device = conn.get_item(where_data=where_data)
-
-                    if isinstance(device, OutputDeviceTable):
-                        check = True
-
-            else:
-                raise APIBotDbException("Не верно указана база данных")
+            if isinstance(device, OutputDeviceTable):
+                check = True
 
         else:
             raise APIBotDbException("Не переданы аргументы")
 
         return check
 
-    def bot_check_company(self, company_name: str | None) -> bool:
+    def is_availability_company(self, company_name):
         """метод проверки наличия компании в базе"""
+
+        check = False
+        query = QuerySchemeForDeviceCompany()
 
         if company_name:
             where_data = {TableRow("company_name"): RowValue(company_name)}
+            company = self.database_get_item(where_data=where_data, query=query)
 
-            if self.db_name:
-                with DatabaseTableHandlerInterface(db_name=self.db_name) as conn:
-                    conn.schema = OutputDeviceCompanyTable
-                    company = conn.get_item(where_data=where_data)
-
-                    if isinstance(company, OutputDeviceCompanyTable):
-                        return True
-                    else:
-                        return False
-
-            else:
-                raise APIBotDbException("Не верно указана база данных")
+            if isinstance(company, OutputDeviceCompanyTable):
+                check = True
 
         else:
             raise APIBotDbException("Не переданы аргументы")
 
-    def bot_check_type(self, type_title: str | None) -> bool:
+        return check
+
+    def is_availability_type(self, type_title):
         """метод проверки наличия типа устройства в списке"""
+
+        check = False
+        query = QuerySchemeForDeviceType()
 
         if type_title:
             where_data = {TableRow("type_title"): RowValue(type_title)}
+            device_type = self.database_get_item(where_data=where_data, query=query)
 
-            if self.db_name:
-                with DatabaseTableHandlerInterface(db_name=self.db_name) as conn:
-                    conn.schema = OutputDeviceTypeTable
-                    device_type = conn.get_item(where_data=where_data)
-
-                    if isinstance(device_type, OutputDeviceTypeTable):
-                        return True
-                    else:
-                        return False
-
-            else:
-                raise APIBotDbException("Не верно указана база данных")
+            if isinstance(device_type, OutputDeviceTypeTable):
+                check = True
 
         else:
             raise APIBotDbException("Не переданы аргументы")
 
-    def bot_change_device_status(self, where_data: Dict[str, str]) -> str | None:
-        """метод смены статуса прибора"""
+        return check
 
-        if self.db_name:
-            with DatabaseTableHandlerInterface(db_name=self.db_name) as conn:
-                conn.schema = StockDeviceTableStatus
-
-                match where_data:
-                    case {
-                        "stock_device_id": str(stock_device_id),
-                        "device_name": str(device_name),
-                        "mark": "0" as mark,
-                    }:
-                        where_check_stock_device_id = {
-                            "stock_device_id": stock_device_id,
-                            "device_name": device_name,
-                        }
-
-                        if self.bot_check_device_from_stockpile(
-                            where_check_stock_device_id
-                        ):
-                            device_id = self.bot_device_id(device_name)
-                            if device_id:
-                                set_data = {
-                                    TableRow("stock_device_status"): RowValue(mark),
-                                    TableRow("at_clean_date"): RowValue(
-                                        modificate_date_to_str()
-                                    ),
-                                }
-                                where_mogrif_data = {
-                                    TableRow("stock_device_id"): RowValue(
-                                        stock_device_id
-                                    ),
-                                    TableRow("device_id"): RowValue(device_id),
-                                }
-
-                                conn.change_device_status(
-                                    set_data=set_data, where_data=where_mogrif_data
-                                )
-
-                            else:
-                                return f"Прибора с таким названием {device_name} нет в базе"
-
-                        else:
-                            return f"Прибора с таким id {stock_device_id} нет на складе"
-
-                    case {
-                        "stock_device_id": str(stock_device_id),
-                        "device_name": str(device_name),
-                        "mark": "1" as mark,
-                    }:
-                        where_check_stock_device_id = {
-                            "stock_device_id": stock_device_id,
-                            "device_name": device_name,
-                        }
-
-                        if self.bot_check_device_from_stockpile(
-                            where_check_stock_device_id
-                        ):
-                            device_id = self.bot_device_id(device_name)
-                            if device_id:
-                                set_data = {
-                                    TableRow("stock_device_status"): RowValue(mark),
-                                    TableRow("at_clean_date"): RowValue(
-                                        modificate_date_to_str()
-                                    ),
-                                }
-                                where_mogrif_data = {
-                                    TableRow("stock_device_id"): RowValue(
-                                        stock_device_id
-                                    ),
-                                    TableRow("device_id"): RowValue(device_id),
-                                }
-
-                                conn.change_device_status(
-                                    set_data=set_data, where_data=where_mogrif_data
-                                )
-
-                            else:
-                                return f"Прибора с таким названием {device_name} нет в базе"
-
-                        else:
-                            return f"Прибора с таким id {stock_device_id} нет на складе"
-
-                    case _:
-                        return f"Переданные данные {where_data} не прошли валидацию"
-
-        else:
-            raise APIBotDbException("Не верно указана база данных")
-
-    def bot_set_device_from_stockpile_by_name_and_id_to_db(
-        self, set_data: Dict[str, str]
-    ) -> str:
+    def bot_set_device_from_stockpile_by_name_and_id_to_db(self, set_data):
         """метод добавления данных о приборе со склада в базу"""
+
+        query = QuerySchemeForStockDevice()
 
         match set_data:
             case {
@@ -682,17 +605,8 @@ class APIBotDb(AbstractAPIBotDb):
 
                 if device_id:
                     item = (stock_device_id, device_id, date)
-
-                    if self.db_name:
-                        with DatabaseTableHandlerInterface(
-                            db_name=self.db_name
-                        ) as conn:
-                            conn.schema = StockDeviceTable
-                            conn.set_item(item)
-                            return f"Прибор с именем {device_name} с id {stock_device_id} добавлен в базу данных"
-
-                    else:
-                        raise APIBotDbException("Не верно указана база данных")
+                    self.database_set_item(set_data=item, query=query)
+                    return f"Прибор с именем {device_name} с id {stock_device_id} добавлен в базу данных"
 
                 else:
                     return (
@@ -702,8 +616,10 @@ class APIBotDb(AbstractAPIBotDb):
             case _:
                 return f"Данные - {set_data} не прошли валидацию"
 
-    def bot_set_device_type(self, set_data: Dict[str, str]) -> str:
+    def bot_set_device_type(self, set_data):
         """метод добавляет тип прибора в базу данных"""
+
+        query = QuerySchemeForDeviceType()
 
         match set_data:
             case {
@@ -711,21 +627,16 @@ class APIBotDb(AbstractAPIBotDb):
                 "type_description": str(type_description),
             }:
                 item = (type_title, type_description)
-
-                if self.db_name:
-                    with DatabaseTableHandlerInterface(db_name=self.db_name) as conn:
-                        conn.schema = DeviceTypeTable
-                        conn.set_item(item)
-                        return f"Тип прибора с названием {type_title} добавлен в бд"
-
-                else:
-                    raise APIBotDbException("Не верно указана база данных")
+                self.database_set_item(set_data=item, query=query)
+                return f"Тип прибора с названием {type_title} добавлен в бд"
 
             case _:
                 return f"Данные - {set_data} не прошли валидацию"
 
-    def bot_set_device_company(self, set_data: Dict[str, str]) -> str:
+    def bot_set_device_company(self, set_data):
         """метод добавляет информацию о компании в базу данных"""
+
+        query = QuerySchemeForDeviceCompany()
 
         match set_data:
             case {
@@ -734,21 +645,16 @@ class APIBotDb(AbstractAPIBotDb):
                 "description_company": str(description_company),
             }:
                 item = (company_name, producer_coutry, description_company)
-
-                if self.db_name:
-                    with DatabaseTableHandlerInterface(db_name=self.db_name) as conn:
-                        conn.schema = DeviceCompanyTable
-                        conn.set_item(item)
-                        return f"Компания с названием {company_name} добавлена в базу"
-
-                else:
-                    raise APIBotDbException("Не верно указана база данных")
+                self.database_set_item(set_data=item, query=query)
+                return f"Компания с названием {company_name} добавлена в базу"
 
             case _:
                 return f"Данные - {set_data} не прошли валидацию"
 
-    def bot_set_device(self, set_data: Dict[str, str]) -> str:
+    def bot_set_device(self, set_data):
         """метод добавлеяет информацию о приборе в бд"""
+
+        query = QuerySchemeForDevice()
 
         match set_data:
             case {
@@ -759,127 +665,183 @@ class APIBotDb(AbstractAPIBotDb):
                 company_id = self.bot_company_id(company_name)
                 type_device_id = self.bot_type_id(type_title)
                 item = (device_name, company_id, type_device_id)
-
-                if self.db_name:
-                    with DatabaseTableHandlerInterface(db_name=self.db_name) as conn:
-                        conn.schema = DeviceTable
-                        conn.set_item(item)
-                        return f"Прибор с именем {device_name} добавлен в базу"
-
-                else:
-                    raise APIBotDbException("Не верно указана база данных")
+                self.database_set_item(set_data=item, query=query)
+                return f"Прибор с именем {device_name} добавлен в базу"
 
             case _:
                 return f"Данные - {set_data} не прошли валидацию"
 
-    def bot_update_devices_stock_clearence_date(
-        self, set_data: Dict[str, str], date: str | None = None
-    ) -> str:
-        if self.db_name:
-            with DatabaseTableHandlerInterface(db_name=self.db_name) as conn:
-                conn.schema = StockDeviceTable
+    def bot_change_device_status(self, where_data):
+        """метод смены статуса прибора"""
 
-                match set_data:
-                    case {
-                        "stock_device_id": str(stock_device_id),
-                        "device_name": str(device_name),
-                    }:
+        with DataBaseInterface(db_name=self.db_name) as conn:
+            match where_data:
+                case {
+                    "stock_device_id": str(stock_device_id),
+                    "device_name": str(device_name),
+                    "mark": "0" as mark,
+                }:
+                    where_check_stock_device_id = {
+                        "stock_device_id": stock_device_id,
+                        "device_name": device_name,
+                    }
+
+                    if self.is_availability_device_from_stockpile(
+                        where_check_stock_device_id
+                    ):
                         device_id = self.bot_device_id(device_name)
 
                         if device_id:
-                            where_data = {
+                            set_data = {
+                                TableRow("stock_device_status"): RowValue(mark),
+                                TableRow("at_clean_date"): RowValue(
+                                    modificate_date_to_str()
+                                ),
+                            }
+                            where_mogrif_data = {
+                                TableRow("stock_device_id"): RowValue(stock_device_id),
+                                TableRow("device_id"): RowValue(device_id),
+                            }
+                            query = QuerySchemeForStockDevice().query_update(
+                                where_data=where_mogrif_data, set_data=set_data
+                            )
+                            cursor = conn.row_factory_for_connection(query[1])
+                            conn.update(query=query[0], cursor=cursor)
+
+                        else:
+                            return f"Прибора с таким названием {device_name} нет в базе"
+
+                    else:
+                        return f"Прибора с таким id {stock_device_id} нет на складе"
+
+                case {
+                    "stock_device_id": str(stock_device_id),
+                    "device_name": str(device_name),
+                    "mark": "1" as mark,
+                }:
+                    where_check_stock_device_id = {
+                        "stock_device_id": stock_device_id,
+                        "device_name": device_name,
+                    }
+
+                    if self.is_availability_device_from_stockpile(
+                        where_check_stock_device_id
+                    ):
+                        device_id = self.bot_device_id(device_name)
+
+                        if device_id:
+                            set_data = {
+                                TableRow("stock_device_status"): RowValue(mark),
+                                TableRow("at_clean_date"): RowValue(
+                                    modificate_date_to_str()
+                                ),
+                            }
+                            where_mogrif_data = {
                                 TableRow("stock_device_id"): RowValue(stock_device_id),
                                 TableRow("device_id"): RowValue(device_id),
                             }
 
-                            if isinstance(date, str) and validate_date(date):
-                                set_mogrif_data = {
-                                    TableRow("at_clean_date"): RowValue(date)
-                                }
-                                conn.update_item(
-                                    set_data=set_mogrif_data, where_data=where_data
-                                )
-                                return f"Данные прибора - {device_name} обновлены"
+                            query = QuerySchemeForStockDevice().query_update(
+                                where_data=where_mogrif_data, set_data=set_data
+                            )
+                            cursor = conn.row_factory_for_connection(query[1])
+                            conn.update(query=query[0], cursor=cursor)
 
-                            else:
-                                date = modificate_date_to_str()
-                                set_mogrif_data = {
-                                    TableRow("at_clean_date"): RowValue(date)
-                                }
-
-                                conn.update_item(
-                                    set_data=set_mogrif_data, where_data=where_data
-                                )
-                                return f"Данные прибора - {device_name} обновлены"
                         else:
-                            return f"Прибор {device_name} не найден"
+                            return f"Прибора с таким названием {device_name} нет в базе"
 
-                    case _:
-                        return f"Данные - {set_data} не прошли валидацию"
+                    else:
+                        return f"Прибора с таким id {stock_device_id} нет на складе"
 
-        else:
-            raise APIBotDbException("Не верно указана база данных")
+                case _:
+                    return f"Переданные данные {where_data} не прошли валидацию"
 
-    def bot_keyboard_company_name_lst(self) -> List[str] | str:
-        if self.db_name:
-            with DatabaseTableHandlerInterface(db_name=self.db_name) as conn:
-                conn.schema = OutputDeviceCompanyTable
-                company = conn.get_items()
+    def bot_update_devices_stock_clearence_date(self, where_data, date=None):
+        with DataBaseInterface(db_name=self.db_name) as conn:
+            match where_data:
+                case {
+                    "stock_device_id": str(stock_device_id),
+                    "device_name": str(device_name),
+                }:
+                    device_id = self.bot_device_id(device_name)
 
-                try:
-                    return [
-                        item.company_name
-                        for item in company
-                        if isinstance(item, OutputDeviceCompanyTable)
-                    ]
+                    if device_id:
+                        where_mogrif_data = {
+                            TableRow("stock_device_id"): RowValue(stock_device_id),
+                            TableRow("device_id"): RowValue(device_id),
+                        }
 
-                except AttributeError:
-                    logger.warning("Список компаний пуст")
-                    return "/add_company"
+                        if isinstance(date, str) and validate_date(date):
+                            set_mogrif_data = {
+                                TableRow("at_clean_date"): RowValue(date)
+                            }
+                            query = QuerySchemeForStockDevice().query_update(
+                                set_data=set_mogrif_data, where_data=where_mogrif_data
+                            )
+                            cursor = conn.row_factory_for_connection(query[1])
+                            conn.update(query=query[0], cursor=cursor)
+                            return f"Данные прибора - {device_name} обновлены"
 
-        else:
-            raise APIBotDbException("Не верно указана база данных")
+                        else:
+                            date = modificate_date_to_str()
+                            set_mogrif_data = {
+                                TableRow("at_clean_date"): RowValue(date)
+                            }
+                            query = QuerySchemeForStockDevice().query_update(
+                                set_data=set_mogrif_data, where_data=where_mogrif_data
+                            )
+                            cursor = conn.row_factory_for_connection(query[1])
+                            conn.update(query=query[0], cursor=cursor)
+                            return f"Данные прибора - {device_name} обновлены"
+                    else:
+                        return f"Прибор {device_name} не найден"
 
-    def bot_keyboard_device_type_lst(self) -> List[str] | str:
-        if self.db_name:
-            with DatabaseTableHandlerInterface(db_name=self.db_name) as conn:
-                conn.schema = OutputDeviceTypeTable
-                device_type = conn.get_items()
-                try:
-                    return [
-                        item.type_title
-                        for item in device_type
-                        if isinstance(item, OutputDeviceTypeTable)
-                    ]
+                case _:
+                    return f"Данные - {where_data} не прошли валидацию"
 
-                except AttributeError:
-                    logger.warning("Список типов пуст")
-                    return "/add_device_type"
+    def bot_keyboard_company_name_lst(self):
+        companys = self.bot_lst_company()
 
-        else:
-            raise APIBotDbException("Не верно указана база данных")
+        try:
+            return [
+                item.company_name
+                for item in companys
+                if isinstance(item, OutputDeviceCompanyTable)
+            ]
 
-    def bot_keyboard_device_lst(self) -> List[str] | str:
-        if self.db_name:
-            with DatabaseTableHandlerInterface(db_name=self.db_name) as conn:
-                conn.schema = OutputDeviceTable
-                device = conn.get_items()
+        except AttributeError:
+            logger.warning("Список компаний пуст")
+            return "/add_company"
 
-                try:
-                    return [
-                        item.device_name
-                        for item in device
-                        if isinstance(item, OutputDeviceTable)
-                    ]
+    def bot_keyboard_device_type_lst(self):
+        device_type = self.bot_lst_device_type()
 
-                except AttributeError:
-                    logger.warning("Не найдены приборы")
-                    return "/add_device"
+        try:
+            return [
+                item.type_title
+                for item in device_type
+                if isinstance(item, OutputDeviceTypeTable)
+            ]
 
-        else:
-            raise APIBotDbException("Не верно указана база данных")
+        except AttributeError:
+            logger.warning("Список типов пуст")
+            return "/add_device_type"
 
-    def bot_inline_kb(self, marker: Marker) -> InlineKeyboardMarkup:
+    def bot_keyboard_device_lst(self):
+        device = self.bot_lst_device()
+
+        try:
+            return [
+                item.device_name
+                for item in device
+                if isinstance(item, OutputDeviceTable)
+            ]
+
+        except AttributeError:
+            logger.warning("Не найдены приборы")
+            return "/add_device"
+
+    def bot_inline_kb(self, marker):
         kb_builder = InlineKeyboardBuilder()
         kb_builder.button(text="/cancel", callback_data="/cancel")
 
@@ -938,3 +900,15 @@ class APIBotDb(AbstractAPIBotDb):
 
         kb_builder.adjust(3)
         return kb_builder.as_markup()
+
+
+def run_api() -> APIBotDb:
+    db_name = ""
+    if os.environ.get("DB_NAME"):
+        db_name = os.environ["DB_NAME"]
+    else:
+        db_name = "clean_device.db"
+
+    api = APIBotDb(db_name=db_name)
+
+    return api

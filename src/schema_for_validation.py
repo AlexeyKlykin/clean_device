@@ -3,11 +3,11 @@
 """
 
 import inspect
-from typing import Annotated, Callable, List, NewType, Type
+from typing import Annotated, Callable, List, NewType, Type, TypeVar
 from pydantic import BaseModel, ConfigDict, Field
 
 
-class SchemaForValidation(Exception):
+class SchemaForValidationException(Exception):
     def __init__(self, *args: object) -> None:
         if args:
             self.message = args[0]
@@ -15,11 +15,15 @@ class SchemaForValidation(Exception):
             self.message = None
 
     def __str__(self) -> str:
-        return "SchemaForValidation, {0}".format(self.message)
+        return "SchemaForValidationException, {0}".format(self.message)
 
 
 class AbstractTable(BaseModel):
     model_config = ConfigDict(strict=True, validate_by_name=True)
+
+    @classmethod
+    def class_mro(cls):
+        return inspect.getmro(cls)[0]
 
     @classmethod
     def table_rows(cls) -> List[str]:
@@ -42,6 +46,9 @@ class AbstractTable(BaseModel):
     @classmethod
     def class_name(cls) -> str:
         return cls.__name__
+
+
+Table = TypeVar("Table", covariant=True, bound=AbstractTable)
 
 
 class StockDeviceTable(AbstractTable):
@@ -298,7 +305,7 @@ class FabricRowFactory:
                 case _:
                     raise ValueError(f"{self.schema_validate} нет соответствий")
         else:
-            raise SchemaForValidation("Не передана схема")
+            raise SchemaForValidationException("Не передана схема")
 
     @choice_row_factory.setter
     def choice_row_factory(self, schema: Type[AbstractTable]):

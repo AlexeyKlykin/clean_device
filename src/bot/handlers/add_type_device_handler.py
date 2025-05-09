@@ -6,7 +6,7 @@ from aiogram.types import Message
 from aiogram.types import ReplyKeyboardRemove
 
 from src.bot.keyboard.keyboard_start import kb_start
-from src.bot_api import APIBotDb, BotHandlerException
+from src.bot_api import BotHandlerException, run_api
 
 logging.basicConfig(
     level=logging.WARNING,
@@ -25,7 +25,7 @@ class AddDeviceType(StatesGroup):
     description_type = State()
 
 
-db_bot_api = APIBotDb()
+db_bot_api = run_api()
 
 
 @device_type_router.message(F.text == "/add_device_type")
@@ -47,9 +47,9 @@ async def add_description_type(message: Message, state: FSMContext):
 async def add_device_type(message: Message, state: FSMContext):
     await state.update_data(type_description=message.text)
     data = await state.get_data()
-    result_job = db_bot_api.bot_set_device_type(data)
 
     try:
+        result_job = db_bot_api.bot_set_device_type(data)
         await message.answer(
             text=f"<b>{result_job}</b>",
             reply_markup=kb_start,
@@ -57,10 +57,6 @@ async def add_device_type(message: Message, state: FSMContext):
 
     except BotHandlerException as err:
         logger.warning(err)
-        await message.answer(
-            text=f"<code>{result_job}</code>",
-            reply_markup=kb_start,
-        )
 
     finally:
         await state.clear()

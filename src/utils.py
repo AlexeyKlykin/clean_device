@@ -9,8 +9,9 @@ def modificate_date_to_str() -> str:
 
 
 def validate_date(date: str) -> bool:
-    re_template = r"^(\d{2})-(\d{1,2})-(\d{4})$"
+    re_template = r"^(\d{1,2})-(\d{1,2})-(\d{4})$"
     match = re.fullmatch(re_template, date)
+
     if match:
         return True
     else:

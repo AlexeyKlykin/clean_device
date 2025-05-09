@@ -6,7 +6,7 @@ from aiogram.types import CallbackQuery, Message
 from aiogram.types import ReplyKeyboardRemove
 
 from src.bot.keyboard.keyboard_start import kb_start
-from src.bot_api import APIBotDb, DeviceCallback, Marker
+from src.bot_api import run_api, DeviceCallback, Marker
 
 logging.basicConfig(
     level=logging.WARNING,
@@ -25,7 +25,7 @@ class AddStockDevice(StatesGroup):
     device_name = State()
 
 
-bot_api_db = APIBotDb()
+bot_api_db = run_api()
 
 devices_cache = set()
 
@@ -59,23 +59,24 @@ async def add_stock_device(
     stock_device_data = await state.get_data()
     stock_device_data["device_name"] = callback_data.device_name
 
-    if bot_api_db.bot_check_device_from_stockpile(stock_device_data):
+    if bot_api_db.is_availability_device_from_stockpile(stock_device_data):
         result_job = bot_api_db.bot_update_devices_stock_clearence_date(
             stock_device_data
         )
+
         if callback.message:
             await callback.message.answer(
-                text=f"<b>{result_job}</b>",
+                text=f"Данные обновленны <b>{result_job}</b>",
                 reply_markup=kb_start,
             )
 
-    elif bot_api_db.bot_check_device(stock_device_data["device_name"]):
+    elif bot_api_db.is_availability_device(stock_device_data["device_name"]):
         result_job = bot_api_db.bot_set_device_from_stockpile_by_name_and_id_to_db(
             stock_device_data
         )
         if callback.message:
             await callback.message.answer(
-                text=f"<code>{result_job}</code>",
+                text=f"Данные добавленны <code>{result_job}</code>",
                 reply_markup=kb_start,
             )
 
