@@ -6,7 +6,7 @@ from abc import ABC, abstractmethod
 from enum import StrEnum
 import logging
 import os
-from typing import Dict, Generic, List
+from typing import Dict, Generic, List, Tuple
 from aiogram import Bot, Dispatcher
 from aiogram.client.default import DefaultBotProperties
 from aiogram.fsm.storage.memory import MemoryStorage
@@ -17,6 +17,7 @@ from aiogram.filters.callback_data import CallbackData
 
 
 from src.schema_for_validation import (
+    Lamp,
     OutputDeviceCompanyTable,
     OutputDeviceTable,
     OutputDeviceTypeTable,
@@ -29,11 +30,11 @@ from src.secret import secrets
 from src.utils import modificate_date_to_str, validate_date
 from src.database_interface import DataBaseInterface, Table
 from src.query_scheme import (
-    AbstractTableQueryScheme,
     QuerySchemeForDeviceType,
     QuerySchemeForDevice,
     QuerySchemeForStockDevice,
     QuerySchemeForDeviceCompany,
+    TableScheme,
 )
 
 
@@ -78,6 +79,8 @@ class Marker(StrEnum):
     GET_DEVICE = "get_device"
     MARKING_DEVICES = "marking_devices"
     LAMP = "lamp_type"
+    DEVICE_FIL = "device_fil"
+    REPLACEMENT_LAMP = "replacement_lamp"
 
 
 if os.environ.get("TOKEN"):
@@ -95,6 +98,11 @@ if token:
 
 else:
     raise TokenError("Ошибка подключения бота. Неверный токен")
+
+
+class DeviceFILCallback(CallbackData, prefix="device_fill"):
+    text_search: str
+    fil_device: str
 
 
 class DeviceTypeCallback(CallbackData, prefix="device_type"):
@@ -117,9 +125,23 @@ class LampTypeCallback(CallbackData, prefix="lamp_type"):
     lamp_type: str
 
 
-class AbstractAPIBotDb(Generic[Table], ABC):
+class AbstractAPIBotDb(Generic[Table, TableScheme], ABC):
     @abstractmethod
-    def bot_options_to_add_or_update(self, where_data) -> str: ...
+    def bot_replacement_lamp(self, where_data: Dict[str, str]) -> str: ...
+
+    @abstractmethod
+    def bot_keyboard_device_lst_from_fil(self) -> List[str] | None: ...
+
+    @abstractmethod
+    def bot_lst_device_by_type_lamp_fil(self) -> List[OutputDeviceTable] | None: ...
+
+    @abstractmethod
+    def bot_lamp_hour_calculate(
+        self, where_data: Dict[str, str]
+    ) -> Tuple[str, bool]: ...
+
+    @abstractmethod
+    def bot_options_to_add_or_update(self, where_data: Dict[str, str]) -> str: ...
 
     @abstractmethod
     def is_LED_lamp_type_by_device_name(self, device_name: str) -> bool | str: ...
@@ -217,24 +239,46 @@ class AbstractAPIBotDb(Generic[Table], ABC):
     @abstractmethod
     def database_get_items(
         self,
-        query: AbstractTableQueryScheme,
+        query: TableScheme,
         where_data: Dict[TableRow, RowValue] | None = None,
     ) -> List[Table] | None: ...
 
     @abstractmethod
     def database_get_item(
         self,
-        query: AbstractTableQueryScheme,
+        query: TableScheme,
         where_data: Dict[TableRow, RowValue] | None = None,
     ) -> Table | None: ...
 
     @abstractmethod
-    def database_set_item(self, query: AbstractTableQueryScheme, set_data: tuple): ...
+    def database_set_item(self, query: TableScheme, set_data: tuple): ...
+
+    @abstractmethod
+    def database_update_item(
+        self,
+        query: TableScheme,
+        set_data: Dict[TableRow, RowValue],
+        where_data: Dict[TableRow, RowValue],
+    ): ...
 
 
 class APIBotDb(AbstractAPIBotDb):
     def __init__(self, db_name: str) -> None:
         self.db_name = db_name
+
+    def database_update_item(
+        self,
+        query,
+        set_data,
+        where_data,
+    ):
+        """метод обновляющий данные в базе"""
+
+        query = query.query_update(set_data=set_data, where_data=where_data)
+
+        with DataBaseInterface(db_name=self.db_name) as conn:
+            cursor = conn.row_factory_for_connection(query[1])
+            conn.update(query=query[0], cursor=cursor)
 
     def database_set_item(self, query, set_data):
         query = query.query_set()
@@ -598,7 +642,7 @@ class APIBotDb(AbstractAPIBotDb):
 
         return check
 
-    def bot_options_to_add_or_update(self, where_data) -> str:
+    def bot_options_to_add_or_update(self, where_data) -> Lamp | str:
         match where_data:
             case {
                 "stock_device_id": str(),
@@ -621,10 +665,10 @@ class APIBotDb(AbstractAPIBotDb):
                             )
                         )
                         logger.warning(result_job)
-                        return "led"
+                        return "LED"
 
                     else:
-                        return "fil"
+                        return "FIL"
 
                 else:
                     return f"В базе отсутсвуют записи о приборе {device_name}"
@@ -659,14 +703,15 @@ class APIBotDb(AbstractAPIBotDb):
             case {
                 "stock_device_id": str(stock_device_id),
                 "device_name": str(device_name),
+                "max_lamp_hours": str(max_lamp_hours),
             }:
                 date = modificate_date_to_str()
                 device_id = self.bot_device_id(device_name)
 
                 if device_id:
-                    item = (stock_device_id, device_id, 0, date)
+                    item = (stock_device_id, device_id, max_lamp_hours, date)
                     self.database_set_item(set_data=item, query=query)
-                    return f"Прибор с именем {device_name} с id {stock_device_id} добавлен в базу данных"
+                    return f"Прибор с именем {device_name} с id {stock_device_id} и часами лампы {max_lamp_hours} добавлен в базу данных"
 
                 else:
                     return (
@@ -676,15 +721,14 @@ class APIBotDb(AbstractAPIBotDb):
             case {
                 "stock_device_id": str(stock_device_id),
                 "device_name": str(device_name),
-                "lamp_hours": str(lamp_hours),
             }:
                 date = modificate_date_to_str()
                 device_id = self.bot_device_id(device_name)
 
                 if device_id:
-                    item = (stock_device_id, device_id, lamp_hours, date)
+                    item = (stock_device_id, device_id, 0, date)
                     self.database_set_item(set_data=item, query=query)
-                    return f"Прибор с именем {device_name} с id {stock_device_id} и часами лампы {lamp_hours} добавлен в базу данных"
+                    return f"Прибор с именем {device_name} с id {stock_device_id} добавлен в базу данных"
 
                 else:
                     return (
@@ -750,181 +794,289 @@ class APIBotDb(AbstractAPIBotDb):
             case _:
                 return f"Данные - {set_data} не прошли валидацию"
 
+    def bot_lamp_hour_calculate(self, where_data: Dict[str, str]) -> Tuple[str, bool]:
+        """метод вычисляет отработанные часы у лампы"""
+
+        its_time_for_change = False
+
+        match where_data:
+            case {
+                "stock_device_id": str(stock_device_id),
+                "device_name": str(device_name),
+                "current_hours": str(current_hours),
+            }:
+                stock_device = self.bot_device_from_stockpile(where_data=where_data)
+
+                if stock_device and isinstance(stock_device, StockDeviceData):
+                    max_hour = stock_device.max_lamp_hours
+
+                    try:
+                        current_hours = int(current_hours)
+
+                        if current_hours >= max_hour:
+                            its_time_for_change = True
+                            return (
+                                f"Лампу пора менять. Максимальный ресурс лампы {max_hour}",
+                                its_time_for_change,
+                            )
+
+                        elif current_hours < max_hour:
+                            its_time_for_change = True
+                            hour_calculate = max_hour - current_hours
+                            return (
+                                f"Оставшийся ресурс лампы {hour_calculate}",
+                                its_time_for_change,
+                            )
+
+                        else:
+                            return "Лампа новая", its_time_for_change
+
+                    except ValueError:
+                        return (
+                            f"{current_hours} введено не верно. Должно быть число",
+                            its_time_for_change,
+                        )
+
+                    except BotHandlerException as err:
+                        raise err
+
+                else:
+                    return (
+                        f"Нет приборов с именем {device_name} и id {stock_device_id} в базе",
+                        its_time_for_change,
+                    )
+
+            case _:
+                return (
+                    f"Данные в bot_lamp_hour_calculate {where_data} не прошли валидацию",
+                    its_time_for_change,
+                )
+
+    def bot_replacement_lamp(self, where_data: Dict[str, str]) -> str:
+        """метод замены лампы в приборе"""
+
+        match where_data:
+            case {
+                "stock_device_id": str(stock_device_id),
+                "device_name": str(device_name),
+                "max_lamp_hours": str(max_lamp_hours),
+            }:
+                device_id = self.bot_device_id(device_name)
+
+                if device_id:
+                    query = QuerySchemeForStockDevice()
+                    set_data = {TableRow("max_lamp_hours"): RowValue(max_lamp_hours)}
+                    where_mogrif_data = {
+                        TableRow("stock_device_id"): RowValue(stock_device_id),
+                        TableRow("device_id"): RowValue(device_id),
+                    }
+                    try:
+                        self.database_update_item(
+                            query=query, set_data=set_data, where_data=where_mogrif_data
+                        )
+                        return f"Лампа для прибора {device_name} c id {stock_device_id} удачно заменена"
+
+                    except BotHandlerException:
+                        return f"{BotHandlerException('Ошибка замены лампы в приборе')}"
+
+                else:
+                    return f"Прибор {device_name} не найден в базе"
+
+            case _:
+                return f"Данные {where_data} не прошли валидацию"
+
     def bot_change_device_status(self, where_data):
         """метод смены статуса прибора"""
 
-        with DataBaseInterface(db_name=self.db_name) as conn:
-            match where_data:
-                case {
-                    "stock_device_id": str(stock_device_id),
-                    "device_name": str(device_name),
-                    "mark": "0" as mark,
-                }:
-                    where_check_stock_device_id = {
-                        "stock_device_id": stock_device_id,
-                        "device_name": device_name,
-                    }
+        match where_data:
+            case {
+                "stock_device_id": str(stock_device_id),
+                "device_name": str(device_name),
+                "mark": "0" as mark,
+            }:
+                where_check_stock_device_id = {
+                    "stock_device_id": stock_device_id,
+                    "device_name": device_name,
+                }
 
-                    if self.is_availability_device_from_stockpile(
-                        where_check_stock_device_id
-                    ):
-                        device_id = self.bot_device_id(device_name)
-
-                        if device_id:
-                            set_data = {
-                                TableRow("stock_device_status"): RowValue(mark),
-                                TableRow("at_clean_date"): RowValue(
-                                    modificate_date_to_str()
-                                ),
-                            }
-                            where_mogrif_data = {
-                                TableRow("stock_device_id"): RowValue(stock_device_id),
-                                TableRow("device_id"): RowValue(device_id),
-                            }
-                            query = QuerySchemeForStockDevice().query_update(
-                                where_data=where_mogrif_data, set_data=set_data
-                            )
-                            cursor = conn.row_factory_for_connection(query[1])
-                            conn.update(query=query[0], cursor=cursor)
-
-                        else:
-                            return f"Прибора с таким названием {device_name} нет в базе"
-
-                    else:
-                        return f"Прибора с таким id {stock_device_id} нет на складе"
-
-                case {
-                    "stock_device_id": str(stock_device_id),
-                    "device_name": str(device_name),
-                    "mark": "1" as mark,
-                }:
-                    where_check_stock_device_id = {
-                        "stock_device_id": stock_device_id,
-                        "device_name": device_name,
-                    }
-
-                    if self.is_availability_device_from_stockpile(
-                        where_check_stock_device_id
-                    ):
-                        device_id = self.bot_device_id(device_name)
-
-                        if device_id:
-                            set_data = {
-                                TableRow("stock_device_status"): RowValue(mark),
-                                TableRow("at_clean_date"): RowValue(
-                                    modificate_date_to_str()
-                                ),
-                            }
-                            where_mogrif_data = {
-                                TableRow("stock_device_id"): RowValue(stock_device_id),
-                                TableRow("device_id"): RowValue(device_id),
-                            }
-
-                            query = QuerySchemeForStockDevice().query_update(
-                                where_data=where_mogrif_data, set_data=set_data
-                            )
-                            cursor = conn.row_factory_for_connection(query[1])
-                            conn.update(query=query[0], cursor=cursor)
-
-                        else:
-                            return f"Прибора с таким названием {device_name} нет в базе"
-
-                    else:
-                        return f"Прибора с таким id {stock_device_id} нет на складе"
-
-                case _:
-                    return f"Переданные данные {where_data} не прошли валидацию"
-
-    def bot_update_devices_stock_clearence_date(self, where_data, date=None):
-        with DataBaseInterface(db_name=self.db_name) as conn:
-            match where_data:
-                case {
-                    "stock_device_id": str(stock_device_id),
-                    "device_name": str(device_name),
-                }:
+                if self.is_availability_device_from_stockpile(
+                    where_check_stock_device_id
+                ):
                     device_id = self.bot_device_id(device_name)
 
                     if device_id:
+                        set_data = {
+                            TableRow("stock_device_status"): RowValue(mark),
+                            TableRow("at_clean_date"): RowValue(
+                                modificate_date_to_str()
+                            ),
+                        }
+                        where_mogrif_data = {
+                            TableRow("stock_device_id"): RowValue(stock_device_id),
+                            TableRow("device_id"): RowValue(device_id),
+                        }
+                        query = QuerySchemeForStockDevice()
+                        self.database_update_item(
+                            query=query, set_data=set_data, where_data=where_mogrif_data
+                        )
+                        logger.warning(
+                            f"Прибор {device_name} с id {stock_device_id} добавлен в ремонт"
+                        )
+
+                    else:
+                        return f"Прибора с таким названием {device_name} нет в базе"
+
+                else:
+                    return f"Прибора с таким id {stock_device_id} нет на складе"
+
+            case {
+                "stock_device_id": str(stock_device_id),
+                "device_name": str(device_name),
+                "mark": "1" as mark,
+            }:
+                where_check_stock_device_id = {
+                    "stock_device_id": stock_device_id,
+                    "device_name": device_name,
+                }
+
+                if self.is_availability_device_from_stockpile(
+                    where_check_stock_device_id
+                ):
+                    device_id = self.bot_device_id(device_name)
+
+                    if device_id:
+                        set_data = {
+                            TableRow("stock_device_status"): RowValue(mark),
+                            TableRow("at_clean_date"): RowValue(
+                                modificate_date_to_str()
+                            ),
+                        }
                         where_mogrif_data = {
                             TableRow("stock_device_id"): RowValue(stock_device_id),
                             TableRow("device_id"): RowValue(device_id),
                         }
 
-                        if isinstance(date, str) and validate_date(date):
-                            set_mogrif_data = {
-                                TableRow("at_clean_date"): RowValue(date)
-                            }
-                            query = QuerySchemeForStockDevice().query_update(
-                                set_data=set_mogrif_data, where_data=where_mogrif_data
-                            )
-                            cursor = conn.row_factory_for_connection(query[1])
-                            conn.update(query=query[0], cursor=cursor)
-                            return f"Данные прибора - {device_name} обновлены"
+                        query = QuerySchemeForStockDevice()
+                        self.database_update_item(
+                            query=query, set_data=set_data, where_data=where_mogrif_data
+                        )
 
-                        else:
-                            date = modificate_date_to_str()
-                            set_mogrif_data = {
-                                TableRow("at_clean_date"): RowValue(date)
-                            }
-                            query = QuerySchemeForStockDevice().query_update(
-                                set_data=set_mogrif_data, where_data=where_mogrif_data
-                            )
-                            cursor = conn.row_factory_for_connection(query[1])
-                            conn.update(query=query[0], cursor=cursor)
-                            return f"Данные прибора - {device_name} обновлены"
                     else:
-                        return f"Прибор {device_name} не найден"
+                        return f"Прибора с таким названием {device_name} нет в базе"
 
-                case _:
-                    return f"Данные - {where_data} не прошли валидацию"
+                else:
+                    return f"Прибора с таким id {stock_device_id} нет на складе"
+
+            case _:
+                return f"Переданные данные {where_data} не прошли валидацию"
+
+    def bot_update_devices_stock_clearence_date(self, where_data, date=None):
+        match where_data:
+            case {
+                "stock_device_id": str(stock_device_id),
+                "device_name": str(device_name),
+            }:
+                device_id = self.bot_device_id(device_name)
+
+                if device_id:
+                    where_mogrif_data = {
+                        TableRow("stock_device_id"): RowValue(stock_device_id),
+                        TableRow("device_id"): RowValue(device_id),
+                    }
+
+                    if isinstance(date, str) and validate_date(date):
+                        set_mogrif_data = {TableRow("at_clean_date"): RowValue(date)}
+                        query = QuerySchemeForStockDevice()
+                        self.database_update_item(
+                            query=query,
+                            set_data=set_mogrif_data,
+                            where_data=where_mogrif_data,
+                        )
+                        return f"Данные прибора - {device_name} обновлены"
+
+                    else:
+                        date = modificate_date_to_str()
+                        set_mogrif_data = {TableRow("at_clean_date"): RowValue(date)}
+                        query = QuerySchemeForStockDevice()
+                        self.database_update_item(
+                            query=query,
+                            set_data=set_mogrif_data,
+                            where_data=where_mogrif_data,
+                        )
+                        return f"Данные прибора - {device_name} обновлены"
+                else:
+                    return f"Прибор {device_name} не найден"
+
+            case _:
+                return f"Данные - {where_data} не прошли валидацию"
 
     def bot_keyboard_company_name_lst(self):
         companys = self.bot_lst_company()
 
-        try:
-            return [
-                item.company_name
-                for item in companys
-                if isinstance(item, OutputDeviceCompanyTable)
-            ]
-
-        except AttributeError:
-            logger.warning("Список компаний пуст")
-            return "/add_company"
+        return [
+            item.company_name
+            for item in companys
+            if isinstance(item, OutputDeviceCompanyTable)
+        ]
 
     def bot_keyboard_device_type_lst(self):
         device_type = self.bot_lst_device_type()
 
-        try:
-            return [
-                item.type_title
-                for item in device_type
-                if isinstance(item, OutputDeviceTypeTable)
-            ]
-
-        except AttributeError:
-            logger.warning("Список типов пуст")
-            return "/add_device_type"
+        return [
+            item.type_title
+            for item in device_type
+            if isinstance(item, OutputDeviceTypeTable)
+        ]
 
     def bot_keyboard_device_lst(self):
         device = self.bot_lst_device()
 
-        try:
+        return [
+            item.device_name for item in device if isinstance(item, OutputDeviceTable)
+        ]
+
+    def bot_lst_device_by_type_lamp_fil(self):
+        """возвращаем приборы по типу лампа накаливания"""
+
+        where_data = {TableRow("dt.lamp_type"): RowValue("FIL")}
+        query = QuerySchemeForDevice()
+        devices = self.database_get_items(query=query, where_data=where_data)
+
+        if devices and all(isinstance(item, OutputDeviceTable) for item in devices):
+            return [item for item in devices]
+
+        else:
+            logger.warning("Не найдены приборы с лампой накаливания")
+
+    def bot_keyboard_device_lst_from_fil(self):
+        devices = self.bot_lst_device_by_type_lamp_fil()
+
+        if isinstance(devices, list):
             return [
                 item.device_name
-                for item in device
+                for item in devices
                 if isinstance(item, OutputDeviceTable)
             ]
 
-        except AttributeError:
-            logger.warning("Не найдены приборы")
-            return "/add_device"
+        else:
+            raise BotHandlerException("Нет данных для клавиатуры")
 
     def bot_inline_kb(self, marker):
         kb_builder = InlineKeyboardBuilder()
         kb_builder.button(text="/cancel", callback_data="/cancel")
 
         match marker:
+            case Marker.DEVICE_FIL:
+                [
+                    kb_builder.button(
+                        text=item,
+                        callback_data=DeviceFILCallback(
+                            text_search="fil_" + item, fil_device=item
+                        ),
+                    )
+                    for item in self.bot_keyboard_device_lst_from_fil()
+                ]
+
             case Marker.DCOMPANY:
                 [
                     kb_builder.button(
@@ -986,6 +1138,17 @@ class APIBotDb(AbstractAPIBotDb):
                         ),
                     )
                     for item in ["LED", "FIL"]
+                ]
+
+            case Marker.REPLACEMENT_LAMP:
+                [
+                    kb_builder.button(
+                        text=item,
+                        callback_data=DeviceFILCallback(
+                            text_search="replace_" + item, fil_device=item
+                        ),
+                    )
+                    for item in self.bot_keyboard_device_lst_from_fil()
                 ]
 
         kb_builder.adjust(3)

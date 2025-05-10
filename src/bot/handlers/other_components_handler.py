@@ -53,7 +53,7 @@ async def get_companies(message: Message):
 
     if companies:
         await message.answer(
-            text="\n".join(
+            text="\n\n".join(
                 [
                     f"""Название компании: <code>{item.company_name}</code>
 Страна производитель: <code>{item.producer_country}</code>
@@ -74,7 +74,7 @@ async def get_device_types(message: Message):
 
     if device_types:
         await message.answer(
-            text="\n".join(
+            text="\n\n".join(
                 [
                     f"""Название типа прибора: <code>{item.type_title}</code>
 Описание типа прибора: <code>{item.type_description:.150}</code>

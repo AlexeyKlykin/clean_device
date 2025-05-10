@@ -32,9 +32,28 @@ data_lst_device_from_stockpile = [
 ]
 
 data_options_to_add_or_update = [
-    ({"stock_device_id": "9000", "device_name": "K90"}, "fil"),
+    ({"stock_device_id": "7000", "device_name": "K90"}, "FIL"),
     ({"stock_device_id": "1", "device_name": "Laser Beam"}, "update"),
-    ({"stock_device_id": "8000", "device_name": "Laser Beam"}, "led"),
+    ({"stock_device_id": "8000", "device_name": "Laser Beam"}, "LED"),
+]
+
+data_lamp_hour_calculate = [
+    (
+        {
+            "stock_device_id": "9000",
+            "device_name": "K90",
+            "current_hours": "200",
+        },
+        ("Оставшийся ресурс лампы 1000", True),
+    ),
+    (
+        {
+            "stock_device_id": "9000",
+            "device_name": "K90",
+            "current_hours": "1300",
+        },
+        ("Лампу пора менять. Максимальный ресурс лампы 1200", True),
+    ),
 ]
 
 
@@ -42,6 +61,30 @@ data_options_to_add_or_update = [
 @mark.api_bot
 class TestAPIBotDb:
     """Тест api взаимодействия бота с базой данных"""
+
+    @mark.parametrize("where_data, expect", data_lamp_hour_calculate)
+    def test_bot_lamp_hour_calculate(self, where_data, expect):
+        """тест: вычисления ресурса лампы"""
+
+        api = APIBotDb("clean_device_test.db")
+        res = api.bot_lamp_hour_calculate(where_data)
+
+        assert res == expect
+
+    def test_bot_lst_device_by_type_lamp_fil(self):
+        """тест: получения списка приборов по типу лампы"""
+
+        api = APIBotDb("clean_device_test.db")
+        res = api.bot_lst_device_by_type_lamp_fil()
+
+        assert res == [
+            OutputDeviceTable(
+                device_id=8,
+                device_name="K90",
+                company_name="Clay Paky",
+                type_title="Brums",
+            ),
+        ]
 
     def test_bot_get_devices_at_date(self):
         """тест: api бота для получения данных о приборе по дате"""
@@ -59,6 +102,9 @@ class TestAPIBotDb:
             ),
             StockBrokenDeviceData(
                 stock_device_id=32, device_name="Arolla", at_clean_date="30-4-2025"
+            ),
+            StockBrokenDeviceData(
+                stock_device_id=9000, device_name="K90", at_clean_date="30-4-2025"
             ),
         ]
 

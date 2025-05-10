@@ -65,10 +65,13 @@ class StockDeviceTable(AbstractTable):
         int,
         Field(gt=0, description="Идентификатор связи с прибором", alias="sd.device_id"),
     ]
-    lamp_hours: Annotated[
+    max_lamp_hours: Annotated[
         int,
         Field(
-            lt=6000, description="Количество часов работы лампы", alias="sd.lamp_hours"
+            lt=6000,
+            gt=0,
+            description="Количество часов работы лампы",
+            alias="sd.max_lamp_hours",
         ),
     ] = 0
     at_clean_date: Annotated[str, Field(min_length=7, alias="sd.at_clean_date")]
@@ -92,10 +95,13 @@ class StockDeviceTableStatus(AbstractTable):
         Field(gt=0, description="Идентификатор связи с прибором", alias="sd.device_id"),
     ]
     stock_device_status: Annotated[Status, Field(alias="sd.stock_device_status")]
-    lamp_hours: Annotated[
+    max_lamp_hours: Annotated[
         int,
         Field(
-            lt=6000, description="Количество часов работы лампы", alias="sd.lamp_hours"
+            lt=6000,
+            gt=0,
+            description="Количество часов работы лампы",
+            alias="sd.max_lamp_hours",
         ),
     ] = 0
     at_clean_date: Annotated[str, Field(min_length=7, alias="sd.at_clean_date")]
@@ -120,10 +126,13 @@ class StockDeviceData(AbstractTable):
     device_name: Annotated[str, Field(min_length=3, alias="d.device_name")]
     company_name: Annotated[str, Field(min_length=3, alias="dc.company_name")]
     type_title: Annotated[str, Field(min_length=3, alias="dt.type_title")]
-    lamp_hours: Annotated[
+    max_lamp_hours: Annotated[
         int,
         Field(
-            lt=6000, description="Количество часов работы лампы", alias="sd.lamp_hours"
+            lt=6000,
+            ge=0,
+            description="Количество часов работы лампы",
+            alias="sd.max_lamp_hours",
         ),
     ] = 0
     at_clean_date: Annotated[str, Field(min_length=7, alias="sd.at_clean_date")]

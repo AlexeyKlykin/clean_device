@@ -14,6 +14,7 @@ button_add = [
         KeyboardButton(text="/add_device_company"),
     ],
     [
+        KeyboardButton(text="/replacement_lamp"),
         KeyboardButton(text="/cancel"),
     ],
 ]
@@ -30,6 +31,7 @@ button_get = [
     ],
     [KeyboardButton(text="/mark_device"), KeyboardButton(text="/stock_device_at_date")],
     [
+        KeyboardButton(text="/check_lamp_hours"),
         KeyboardButton(text="/cancel"),
     ],
 ]

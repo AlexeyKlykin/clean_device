@@ -3,7 +3,7 @@ import json
 import os
 import sqlite3
 from abc import ABC, abstractmethod
-from typing import Callable, Dict, List, Tuple, Type, IO, Literal
+from typing import Callable, Dict, List, Tuple, Type, IO, Literal, TypeVar
 
 from src.schema_for_validation import (
     AbstractTable,
@@ -56,7 +56,7 @@ CREATE_TABLE_STOCK_DEVICE = """CREATE TABLE IF NOT EXISTS stock_device
     (id integer primary key AUTOINCREMENT,
     stock_device_id integer,
     at_clean_date text not null,
-    lamp_hours integer default 0,
+    max_lamp_hours integer default 0,
     stock_device_status BOOLEAN DEFAULT 1,
     device_id integer,
     foreign key(device_id) references device(device_id))
@@ -210,6 +210,9 @@ class AbstractTableQueryScheme(ABC):
     @staticmethod
     def table_rows(scheme: Type[AbstractTable]):
         return ", ".join(scheme.table_rows())
+
+
+TableScheme = TypeVar("TableScheme", bound=AbstractTableQueryScheme, contravariant=True)
 
 
 class QuerySchemeForStockDevice(AbstractTableQueryScheme):
