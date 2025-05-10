@@ -31,6 +31,12 @@ data_lst_device_from_stockpile = [
     (None, f"Не найдено не одного прибора в ремонте за эту дату {date}"),
 ]
 
+data_options_to_add_or_update = [
+    ({"stock_device_id": "9000", "device_name": "K90"}, "fil"),
+    ({"stock_device_id": "1", "device_name": "Laser Beam"}, "update"),
+    ({"stock_device_id": "8000", "device_name": "Laser Beam"}, "led"),
+]
+
 
 @mark.usefixtures("db_connect")
 @mark.api_bot
@@ -211,6 +217,12 @@ class TestAPIBotDb:
                 company_name="Clay Paky",
                 type_title="Hybrid",
             ),
+            OutputDeviceTable(
+                device_id=8,
+                device_name="K90",
+                company_name="Clay Paky",
+                type_title="Brums",
+            ),
         ]
 
     def test_bot_lst_company(self):
@@ -383,6 +395,7 @@ class TestAPIBotDb:
         set_data = {
             "type_title": "Beams",
             "type_description": "device type description Beams",
+            "lamp_type": "LED",
         }
         api.bot_set_device_type(set_data=set_data)
 
@@ -428,3 +441,20 @@ class TestAPIBotDb:
         res = api.bot_update_devices_stock_clearence_date(where_data=set_data)
 
         assert res == "Данные прибора - Laser Beam обновлены"
+
+    def test_is_LED_lamp_type_by_device_name(self):
+        """тест: проверки типа лампы по имени прибора"""
+
+        api = APIBotDb("clean_device_test.db")
+        res = api.is_LED_lamp_type_by_device_name("Laser Beam")
+
+        assert res
+
+    @mark.parametrize("where_data, expect", data_options_to_add_or_update)
+    def test_bot_options_to_add_or_update(self, where_data, expect):
+        """тест: выбора варианта действия от входных параметров"""
+
+        api = APIBotDb("clean_device_test.db")
+        res = api.bot_options_to_add_or_update(where_data)
+
+        assert res == expect

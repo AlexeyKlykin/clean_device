@@ -1,9 +1,9 @@
 import logging
-from abc import ABC, abstractmethod
-from typing import Callable, Dict, List, Tuple, Type, IO, Literal
 import json
 import os
 import sqlite3
+from abc import ABC, abstractmethod
+from typing import Callable, Dict, List, Tuple, Type, IO, Literal
 
 from src.schema_for_validation import (
     AbstractTable,
@@ -39,7 +39,8 @@ CREATE_TABLE_DEVICE_COMPANY = """CREATE TABLE IF NOT EXISTS device_company
 CREATE_TABLE_DEVICE_TYPE = """CREATE TABLE IF NOT EXISTS device_type
     (type_device_id integer primary key AUTOINCREMENT,
     type_title text not null unique,
-    type_description text)
+    type_description text,
+    lamp_type text default 'LED')
 """
 
 CREATE_TABLE_DEVICE = """CREATE TABLE IF NOT EXISTS device
@@ -55,7 +56,8 @@ CREATE_TABLE_STOCK_DEVICE = """CREATE TABLE IF NOT EXISTS stock_device
     (id integer primary key AUTOINCREMENT,
     stock_device_id integer,
     at_clean_date text not null,
-    stock_device_status BOOLEAN DEFAULT 0,
+    lamp_hours integer default 0,
+    stock_device_status BOOLEAN DEFAULT 1,
     device_id integer,
     foreign key(device_id) references device(device_id))
 """

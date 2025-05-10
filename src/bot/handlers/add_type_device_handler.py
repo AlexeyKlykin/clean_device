@@ -2,11 +2,11 @@ import logging
 from aiogram import Router, F
 from aiogram.fsm.state import StatesGroup, State
 from aiogram.fsm.context import FSMContext
-from aiogram.types import Message
+from aiogram.types import CallbackQuery, Message
 from aiogram.types import ReplyKeyboardRemove
 
 from src.bot.keyboard.keyboard_start import kb_start
-from src.bot_api import BotHandlerException, run_api
+from src.bot_api import BotHandlerException, LampTypeCallback, Marker, run_api
 
 logging.basicConfig(
     level=logging.WARNING,
@@ -46,14 +46,29 @@ async def add_description_type(message: Message, state: FSMContext):
 @device_type_router.message(AddDeviceType.description_type)
 async def add_device_type(message: Message, state: FSMContext):
     await state.update_data(type_description=message.text)
+    await message.answer(
+        text="Выберите тип лампы", reply_markup=db_bot_api.bot_inline_kb(Marker.LAMP)
+    )
+
+
+@device_type_router.callback_query(
+    LampTypeCallback.filter(F.text_search.in_(["LED", "FIL"]))
+)
+async def add_lamp_typ(
+    callback: CallbackQuery, callback_data: LampTypeCallback, state: FSMContext
+):
+    await callback.answer()
     data = await state.get_data()
+    data["lamp_type"] = callback_data.lamp_type
 
     try:
         result_job = db_bot_api.bot_set_device_type(data)
-        await message.answer(
-            text=f"<b>{result_job}</b>",
-            reply_markup=kb_start,
-        )
+
+        if callback.message:
+            await callback.message.answer(
+                text=f"<b>{result_job}</b>",
+                reply_markup=kb_start,
+            )
 
     except BotHandlerException as err:
         logger.warning(err)

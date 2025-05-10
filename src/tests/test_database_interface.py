@@ -61,7 +61,7 @@ database_set_data = [
 ]
 
 database_get_data = [
-    (QuerySchemeForDeviceType(), None, DeviceTypeTable),
+    (QuerySchemeForDeviceType(), None, OutputDeviceTypeTable),
     (
         QuerySchemeForDeviceType(),
         {TableRow("type_title"): RowValue("Beam")},

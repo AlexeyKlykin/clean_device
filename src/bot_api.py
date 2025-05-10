@@ -6,7 +6,7 @@ from abc import ABC, abstractmethod
 from enum import StrEnum
 import logging
 import os
-from typing import Dict, Generic, List, Literal
+from typing import Dict, Generic, List
 from aiogram import Bot, Dispatcher
 from aiogram.client.default import DefaultBotProperties
 from aiogram.fsm.storage.memory import MemoryStorage
@@ -23,12 +23,11 @@ from src.schema_for_validation import (
     RowValue,
     StockBrokenDeviceData,
     StockDeviceData,
-    Table,
     TableRow,
 )
 from src.secret import secrets
 from src.utils import modificate_date_to_str, validate_date
-from src.database_interface import DataBaseInterface
+from src.database_interface import DataBaseInterface, Table
 from src.query_scheme import (
     AbstractTableQueryScheme,
     QuerySchemeForDeviceType,
@@ -78,6 +77,7 @@ class Marker(StrEnum):
     DEVICE = "device"
     GET_DEVICE = "get_device"
     MARKING_DEVICES = "marking_devices"
+    LAMP = "lamp_type"
 
 
 if os.environ.get("TOKEN"):
@@ -112,10 +112,18 @@ class DeviceCallback(CallbackData, prefix="device"):
     device_name: str
 
 
-type Status = Literal["0", "1"]
+class LampTypeCallback(CallbackData, prefix="lamp_type"):
+    text_search: str
+    lamp_type: str
 
 
 class AbstractAPIBotDb(Generic[Table], ABC):
+    @abstractmethod
+    def bot_options_to_add_or_update(self, where_data) -> str: ...
+
+    @abstractmethod
+    def is_LED_lamp_type_by_device_name(self, device_name: str) -> bool | str: ...
+
     @abstractmethod
     def bot_keyboard_device_lst(self) -> List[str] | str: ...
 
@@ -590,6 +598,58 @@ class APIBotDb(AbstractAPIBotDb):
 
         return check
 
+    def bot_options_to_add_or_update(self, where_data) -> str:
+        match where_data:
+            case {
+                "stock_device_id": str(),
+                "device_name": str(device_name),
+            }:
+                if self.is_availability_device_from_stockpile(where_data):
+                    result_job = self.bot_update_devices_stock_clearence_date(
+                        where_data
+                    )
+                    logger.warning(result_job)
+                    return "update"
+
+                elif self.is_availability_device(device_name=device_name):
+                    lamp_type = self.is_LED_lamp_type_by_device_name(device_name)
+
+                    if lamp_type:
+                        result_job = (
+                            self.bot_set_device_from_stockpile_by_name_and_id_to_db(
+                                where_data
+                            )
+                        )
+                        logger.warning(result_job)
+                        return "led"
+
+                    else:
+                        return "fil"
+
+                else:
+                    return f"В базе отсутсвуют записи о приборе {device_name}"
+
+            case _:
+                return "Данные не прошли валидацию"
+
+    def is_LED_lamp_type_by_device_name(self, device_name) -> bool | str:
+        """метод возвращает тип лампы"""
+
+        led = False
+        device = self.bot_device(device_name=device_name)
+
+        if isinstance(device, OutputDeviceTable):
+            device_type = self.bot_device_type(device.type_title)
+
+            if (
+                isinstance(device_type, OutputDeviceTypeTable)
+                and device_type.lamp_type == "LED"
+            ):
+                print(device_type.lamp_type)
+                led = True
+
+        return led
+
     def bot_set_device_from_stockpile_by_name_and_id_to_db(self, set_data):
         """метод добавления данных о приборе со склада в базу"""
 
@@ -604,9 +664,27 @@ class APIBotDb(AbstractAPIBotDb):
                 device_id = self.bot_device_id(device_name)
 
                 if device_id:
-                    item = (stock_device_id, device_id, date)
+                    item = (stock_device_id, device_id, 0, date)
                     self.database_set_item(set_data=item, query=query)
                     return f"Прибор с именем {device_name} с id {stock_device_id} добавлен в базу данных"
+
+                else:
+                    return (
+                        f"Прибора с именем - {device_name} не существует в базе данных"
+                    )
+
+            case {
+                "stock_device_id": str(stock_device_id),
+                "device_name": str(device_name),
+                "lamp_hours": str(lamp_hours),
+            }:
+                date = modificate_date_to_str()
+                device_id = self.bot_device_id(device_name)
+
+                if device_id:
+                    item = (stock_device_id, device_id, lamp_hours, date)
+                    self.database_set_item(set_data=item, query=query)
+                    return f"Прибор с именем {device_name} с id {stock_device_id} и часами лампы {lamp_hours} добавлен в базу данных"
 
                 else:
                     return (
@@ -625,8 +703,9 @@ class APIBotDb(AbstractAPIBotDb):
             case {
                 "type_title": str(type_title),
                 "type_description": str(type_description),
+                "lamp_type": str(lamp_type),
             }:
-                item = (type_title, type_description)
+                item = (type_title, type_description, lamp_type)
                 self.database_set_item(set_data=item, query=query)
                 return f"Тип прибора с названием {type_title} добавлен в бд"
 
@@ -896,6 +975,17 @@ class APIBotDb(AbstractAPIBotDb):
                         ),
                     )
                     for item in self.bot_keyboard_device_lst()
+                ]
+
+            case Marker.LAMP:
+                [
+                    kb_builder.button(
+                        text=item,
+                        callback_data=LampTypeCallback(
+                            text_search=item, lamp_type=item
+                        ),
+                    )
+                    for item in ["LED", "FIL"]
                 ]
 
         kb_builder.adjust(3)

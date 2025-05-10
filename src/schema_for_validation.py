@@ -3,8 +3,12 @@
 """
 
 import inspect
-from typing import Annotated, Callable, List, NewType, Type, TypeVar
+from typing import Annotated, Callable, List, Literal, NewType, Type
 from pydantic import BaseModel, ConfigDict, Field
+
+
+type Lamp = Literal["LED", "FIL"]
+type Status = Literal["0", "1"]
 
 
 class SchemaForValidationException(Exception):
@@ -48,9 +52,6 @@ class AbstractTable(BaseModel):
         return cls.__name__
 
 
-Table = TypeVar("Table", covariant=True, bound=AbstractTable)
-
-
 class StockDeviceTable(AbstractTable):
     stock_device_id: Annotated[
         int,
@@ -64,6 +65,12 @@ class StockDeviceTable(AbstractTable):
         int,
         Field(gt=0, description="Идентификатор связи с прибором", alias="sd.device_id"),
     ]
+    lamp_hours: Annotated[
+        int,
+        Field(
+            lt=6000, description="Количество часов работы лампы", alias="sd.lamp_hours"
+        ),
+    ] = 0
     at_clean_date: Annotated[str, Field(min_length=7, alias="sd.at_clean_date")]
 
     @staticmethod
@@ -84,8 +91,14 @@ class StockDeviceTableStatus(AbstractTable):
         int,
         Field(gt=0, description="Идентификатор связи с прибором", alias="sd.device_id"),
     ]
+    stock_device_status: Annotated[Status, Field(alias="sd.stock_device_status")]
+    lamp_hours: Annotated[
+        int,
+        Field(
+            lt=6000, description="Количество часов работы лампы", alias="sd.lamp_hours"
+        ),
+    ] = 0
     at_clean_date: Annotated[str, Field(min_length=7, alias="sd.at_clean_date")]
-    stock_device_status: Annotated[bool, Field(alias="sd.stock_device_status")]
 
     @staticmethod
     def table_name() -> str:
@@ -107,6 +120,12 @@ class StockDeviceData(AbstractTable):
     device_name: Annotated[str, Field(min_length=3, alias="d.device_name")]
     company_name: Annotated[str, Field(min_length=3, alias="dc.company_name")]
     type_title: Annotated[str, Field(min_length=3, alias="dt.type_title")]
+    lamp_hours: Annotated[
+        int,
+        Field(
+            lt=6000, description="Количество часов работы лампы", alias="sd.lamp_hours"
+        ),
+    ] = 0
     at_clean_date: Annotated[str, Field(min_length=7, alias="sd.at_clean_date")]
 
     @staticmethod
@@ -133,6 +152,13 @@ class OutputDeviceTypeTable(AbstractTable):
             alias="dt.type_description",
         ),
     ]
+    lamp_type: Annotated[
+        Lamp,
+        Field(
+            description="Тип лампы с выбором из двух возможных вариантов",
+            alias="dt.lamp_type",
+        ),
+    ] = "LED"
 
     @staticmethod
     def table_name() -> str:
@@ -152,6 +178,13 @@ class DeviceTypeTable(AbstractTable):
             alias="dt.type_description",
         ),
     ]
+    lamp_type: Annotated[
+        Lamp,
+        Field(
+            description="Тип лампы с выбором из двух возможных вариантов",
+            alias="dt.lamp_type",
+        ),
+    ] = "LED"
 
     @staticmethod
     def table_name() -> str:

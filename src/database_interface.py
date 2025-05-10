@@ -1,11 +1,9 @@
 import sqlite3
 import logging
-from typing import Callable, Generator, Generic, List, Type
+from typing import Callable, Generator, Generic, List, TypeVar
 
-from src.schema_for_validation import (
-    AbstractTable,
-    Table,
-)
+from src.schema_for_validation import AbstractTable
+
 
 logging.basicConfig(
     level=logging.WARNING,
@@ -35,10 +33,13 @@ class DataBaseInterfaceException(Exception):
             return "DataResolveInterfaceException вызвана для класса обработки данных"
 
 
+Table = TypeVar("Table", covariant=True, bound=AbstractTable)
+
+
 class DataBaseInterface(Generic[Table]):
     """Класс для работы с базой данных приборов"""
 
-    __slots__ = ("db_name", "fabric", "conn")
+    __slots__ = ("db_name", "conn")
 
     def __init__(self, db_name: str):
         self.db_name = db_name

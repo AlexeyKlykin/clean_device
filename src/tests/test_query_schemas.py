@@ -12,15 +12,15 @@ from src.schema_for_validation import RowValue, TableRow
 data_for_table_stock_device = [
     (
         None,
-        "SELECT sd.stock_device_id, d.device_name, dc.company_name, dt.type_title, sd.at_clean_date\nFROM stock_device as sd\nLEFT JOIN device d ON d.device_id = sd.device_id\nLEFT JOIN device_company dc ON dc.company_id = d.company_id\nLEFT JOIN device_type dt ON dt.type_device_id = d.type_device_id\n",
+        "SELECT sd.stock_device_id, d.device_name, dc.company_name, dt.type_title, sd.lamp_hours, sd.at_clean_date\nFROM stock_device as sd\nLEFT JOIN device d ON d.device_id = sd.device_id\nLEFT JOIN device_company dc ON dc.company_id = d.company_id\nLEFT JOIN device_type dt ON dt.type_device_id = d.type_device_id\n",
     ),
     (
         {TableRow("at_clean_date"): RowValue("30-4-2025")},
-        "SELECT sd.stock_device_id, d.device_name, dc.company_name, dt.type_title, sd.at_clean_date\nFROM stock_device as sd\nLEFT JOIN device d ON d.device_id = sd.device_id\nLEFT JOIN device_company dc ON dc.company_id = d.company_id\nLEFT JOIN device_type dt ON dt.type_device_id = d.type_device_id\nWHERE at_clean_date='30-4-2025'\n",
+        "SELECT sd.stock_device_id, d.device_name, dc.company_name, dt.type_title, sd.lamp_hours, sd.at_clean_date\nFROM stock_device as sd\nLEFT JOIN device d ON d.device_id = sd.device_id\nLEFT JOIN device_company dc ON dc.company_id = d.company_id\nLEFT JOIN device_type dt ON dt.type_device_id = d.type_device_id\nWHERE at_clean_date='30-4-2025'\n",
     ),
     (
         None,
-        "SELECT sd.stock_device_id, d.device_name, dc.company_name, dt.type_title, sd.at_clean_date\nFROM stock_device as sd\nLEFT JOIN device d ON d.device_id = sd.device_id\nLEFT JOIN device_company dc ON dc.company_id = d.company_id\nLEFT JOIN device_type dt ON dt.type_device_id = d.type_device_id\n",
+        "SELECT sd.stock_device_id, d.device_name, dc.company_name, dt.type_title, sd.lamp_hours, sd.at_clean_date\nFROM stock_device as sd\nLEFT JOIN device d ON d.device_id = sd.device_id\nLEFT JOIN device_company dc ON dc.company_id = d.company_id\nLEFT JOIN device_type dt ON dt.type_device_id = d.type_device_id\n",
     ),
 ]
 
@@ -53,9 +53,12 @@ data_for_table_device_company = [
 data_for_table_type_device = [
     (
         {TableRow("type_title"): RowValue("Beam")},
-        "SELECT type_device_id, type_title, type_description \nFROM device_type as dt\nWHERE type_title='Beam'\n",
+        "SELECT type_device_id, type_title, type_description, lamp_type \nFROM device_type as dt\nWHERE type_title='Beam'\n",
     ),
-    (None, "SELECT type_title, type_description FROM device_type as dt"),
+    (
+        None,
+        "SELECT type_device_id, type_title, type_description, lamp_type FROM device_type as dt",
+    ),
 ]
 
 data_device_by_status = [
@@ -98,7 +101,7 @@ class TestQuerySchemeForStockDevice:
 
         assert (
             result[0]
-            == "INSERT INTO stock_device as sd (stock_device_id, device_id, at_clean_date) VALUES (?, ?, ?)"
+            == "INSERT INTO stock_device as sd (stock_device_id, device_id, lamp_hours, at_clean_date) VALUES (?, ?, ?, ?)"
         )
 
     def test_query_update(self):
@@ -228,7 +231,7 @@ class TestQuerySchemeForTypeDevice:
 
         assert (
             result[0]
-            == "INSERT INTO device_type as dt (type_title, type_description) VALUES (?, ?)"
+            == "INSERT INTO device_type as dt (type_title, type_description, lamp_type) VALUES (?, ?, ?)"
         )
 
     def test_query_update(self):
