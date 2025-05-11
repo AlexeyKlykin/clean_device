@@ -1,11 +1,11 @@
 import logging
 from aiogram import Router, F
-from aiogram.fsm.state import StatesGroup, State
 from aiogram.fsm.context import FSMContext
 from aiogram.types import CallbackQuery, Message
 from aiogram.types import ReplyKeyboardRemove
 
 from src.bot.keyboard.keyboard_start import kb_start, kb_add
+from src.bot.states import AddDevice
 from src.bot_api import (
     DeviceTypeCallback,
     DeviceCompanyCallback,
@@ -25,10 +25,6 @@ logger.addHandler(logging.StreamHandler())
 device_router = Router()
 
 bot_api_db = run_api()
-
-
-class AddDevice(StatesGroup):
-    device_name = State()
 
 
 companys_cache = set()

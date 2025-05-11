@@ -69,7 +69,7 @@ class StockDeviceTable(AbstractTable):
         int,
         Field(
             lt=6000,
-            gt=0,
+            ge=0,
             description="Количество часов работы лампы",
             alias="sd.max_lamp_hours",
         ),
@@ -99,7 +99,7 @@ class StockDeviceTableStatus(AbstractTable):
         int,
         Field(
             lt=6000,
-            gt=0,
+            ge=0,
             description="Количество часов работы лампы",
             alias="sd.max_lamp_hours",
         ),

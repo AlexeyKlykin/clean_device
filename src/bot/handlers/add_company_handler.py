@@ -1,11 +1,11 @@
 import logging
 from aiogram import Router, F
-from aiogram.fsm.state import StatesGroup, State
 from aiogram.fsm.context import FSMContext
 from aiogram.types import Message
 from aiogram.types import ReplyKeyboardRemove
 
 from src.bot.keyboard.keyboard_start import kb_start
+from src.bot.states import AddDeviceCompany
 from src.bot_api import run_api, BotHandlerException
 
 logging.basicConfig(
@@ -18,12 +18,6 @@ logger.addHandler(logging.StreamHandler())
 
 
 device_company_router = Router()
-
-
-class AddDeviceCompany(StatesGroup):
-    company_name = State()
-    producer_country = State()
-    description_company = State()
 
 
 db_bot_api = run_api()

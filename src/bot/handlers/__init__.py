@@ -6,6 +6,7 @@ from src.bot.handlers import (
     add_company_handler,
     get_stock_device_handler,
     other_components_handler,
+    lamp_handler,
 )
 
 routers = [
@@ -16,4 +17,5 @@ routers = [
     add_company_handler.device_company_router,
     get_stock_device_handler.get_stock_device_router,
     other_components_handler.other_components_router,
+    lamp_handler.lamp_router,
 ]

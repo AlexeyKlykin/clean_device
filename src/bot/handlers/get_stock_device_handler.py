@@ -1,9 +1,9 @@
 import logging
 from aiogram import Router, F
-from aiogram.fsm.state import StatesGroup, State
 from aiogram.fsm.context import FSMContext
 from aiogram.types import CallbackQuery, Message
 
+from src.bot.states import BrokenDevices, CleanDevices, GetStockDevice, MarkDeviceState
 from src.bot_api import DeviceCallback, Marker, run_api
 from src.bot.keyboard.keyboard_start import kb_start
 from src.schema_for_validation import StockBrokenDeviceData, StockDeviceData
@@ -20,24 +20,6 @@ logger.addHandler(logging.StreamHandler())
 get_stock_device_router = Router()
 
 bot_api_db = run_api()
-
-
-class GetStockDevice(StatesGroup):
-    stock_device_id = State()
-    device_name = State()
-
-
-class MarkDeviceState(StatesGroup):
-    stock_device_id = State()
-    mark = State()
-
-
-class BrokenDevices(StatesGroup):
-    clean_date = State()
-
-
-class CleanDevices(StatesGroup):
-    clean_date = State()
 
 
 @get_stock_device_router.message(F.text == "/stock_device_at_date")

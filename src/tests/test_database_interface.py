@@ -55,7 +55,12 @@ database_set_data = [
     ),
     (
         QuerySchemeForStockDevice(),
-        StockDeviceTable(stock_device_id=9000, device_id=1, at_clean_date="30-4-2025"),
+        StockDeviceTable(
+            stock_device_id=9000,
+            device_id=8,
+            max_lamp_hours=1200,
+            at_clean_date="30-4-2025",
+        ),
         "select * from stock_device where stock_device_id='9000'",
     ),
 ]
@@ -111,9 +116,9 @@ database_update_data = [
     ),
     (
         QuerySchemeForStockDevice(),
-        {TableRow("stock_device_id"): RowValue("9000")},
+        {TableRow("stock_device_id"): RowValue("8000")},
         {TableRow("stock_device_id"): RowValue("1")},
-        "select * from stock_device where stock_device_id='9000'",
+        "select * from stock_device where stock_device_id='8000'",
         StockDeviceTable,
     ),
 ]
@@ -178,6 +183,3 @@ class TestDatabaseInterface:
         result = cur.fetchone()
 
         assert isinstance(result, expected)
-
-    def test_get_all(self):
-        """тест: получения списка результатов"""

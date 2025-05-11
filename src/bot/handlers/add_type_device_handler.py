@@ -1,11 +1,11 @@
 import logging
 from aiogram import Router, F
-from aiogram.fsm.state import StatesGroup, State
 from aiogram.fsm.context import FSMContext
 from aiogram.types import CallbackQuery, Message
 from aiogram.types import ReplyKeyboardRemove
 
 from src.bot.keyboard.keyboard_start import kb_start
+from src.bot.states import AddDeviceType
 from src.bot_api import BotHandlerException, LampTypeCallback, Marker, run_api
 
 logging.basicConfig(
@@ -18,11 +18,6 @@ logger.addHandler(logging.StreamHandler())
 
 
 device_type_router = Router()
-
-
-class AddDeviceType(StatesGroup):
-    type_title = State()
-    description_type = State()
 
 
 db_bot_api = run_api()
