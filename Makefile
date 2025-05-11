@@ -14,3 +14,6 @@ all_test:
 run_bot:
 	uv run main.py
 
+update_readme:
+	tree -f -I "__pycache__|.pyc|__init__.py" -P "*.py" >> README.md 
+
