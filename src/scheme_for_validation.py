@@ -11,7 +11,7 @@ type Lamp = Literal["LED", "FIL"]
 type Status = Literal["0", "1"]
 
 
-class SchemaForValidationException(Exception):
+class SchemeForValidationException(Exception):
     def __init__(self, *args: object) -> None:
         if args:
             self.message = args[0]
@@ -19,7 +19,7 @@ class SchemaForValidationException(Exception):
             self.message = None
 
     def __str__(self) -> str:
-        return "SchemaForValidationException, {0}".format(self.message)
+        return "SchemeForValidationException, {0}".format(self.message)
 
 
 class AbstractTable(BaseModel):
@@ -308,12 +308,12 @@ RowValue = NewType("RowValue", str)
 # фабрики
 class FabricRowFactory:
     def __init__(self):
-        self.schema_validate = None
+        self.scheme_validate = None
 
     @property
     def choice_row_factory(self) -> Callable:
-        if self.schema_validate:
-            match self.schema_validate.class_name():
+        if self.scheme_validate:
+            match self.scheme_validate.class_name():
                 case "StockBrokenDeviceData":
                     return self.output_broken_device_factory
 
@@ -345,13 +345,13 @@ class FabricRowFactory:
                     return self.stock_device_status_factory
 
                 case _:
-                    raise ValueError(f"{self.schema_validate} нет соответствий")
+                    raise ValueError(f"{self.scheme_validate} нет соответствий")
         else:
-            raise SchemaForValidationException("Не передана схема")
+            raise SchemeForValidationException("Не передана схема")
 
     @choice_row_factory.setter
-    def choice_row_factory(self, schema: Type[AbstractTable]):
-        self.schema_validate = schema
+    def choice_row_factory(self, scheme: Type[AbstractTable]):
+        self.scheme_validate = scheme
 
     @staticmethod
     def output_broken_device_factory(cursor, row):

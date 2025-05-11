@@ -6,7 +6,7 @@ from aiogram.types import CallbackQuery, Message
 from src.bot.states import BrokenDevices, CleanDevices, GetStockDevice, MarkDeviceState
 from src.bot_api import DeviceCallback, Marker, run_api
 from src.bot.keyboard.keyboard_start import kb_start
-from src.schema_for_validation import StockBrokenDeviceData, StockDeviceData
+from src.scheme_for_validation import StockBrokenDeviceData, StockDeviceData
 
 logging.basicConfig(
     level=logging.WARNING,
@@ -40,9 +40,9 @@ async def get_stock_device_at_date(message: Message, state: FSMContext):
         await message.answer(
             text="\n\n".join(
                 [
-                    f"""Id прибора: <b>{item.stock_device_id}</b>
-Название прибора: <b>{item.device_name}</b>
-Дата очистки: <b>{item.at_clean_date}</b>"""
+                    f"""<i>Id прибора</i>: <b>{item.stock_device_id}</b>
+<i>Название прибора</i>: <b>{item.device_name}</b>
+<i>Дата очистки</i>: <b>{item.at_clean_date}</b>"""
                     for item in lst_devices
                     if isinstance(item, StockBrokenDeviceData)
                 ]
@@ -58,8 +58,8 @@ async def get_stock_device_at_date(message: Message, state: FSMContext):
 @get_stock_device_router.message(F.text == "/get_broken_device")
 async def start_get_broken_device(message: Message, state: FSMContext):
     await message.answer(
-        text="""Введите дату а формате <b>d-m-yyyy</b>. 
-Или введите <b>0</b> чтобы вывести приборы за текущую дату"""
+        text="""<i>Введите дату а формате</i> <b>d-m-yyyy</b>. 
+<i>Или введите</i> <b>0</b> <i>чтобы вывести приборы за текущую дату</i>"""
     )
     await state.set_state(BrokenDevices.clean_date)
 
@@ -74,9 +74,9 @@ async def get_broken_device(message: Message, state: FSMContext):
         await message.answer(
             text="\n\n".join(
                 [
-                    f"""ID прибора: <code>{item.stock_device_id}</code>
-Название прибора: <code>{item.device_name}</code>
-Дата очистки: <code>{item.at_clean_date}</code>"""
+                    f"""<i>ID прибора</i>: <code>{item.stock_device_id}</code>
+<i>Название прибора</i>: <code>{item.device_name}</code>
+<i>Дата очистки</i>: <code>{item.at_clean_date}</code>"""
                     for item in devices
                     if isinstance(item, StockBrokenDeviceData)
                 ]
@@ -99,7 +99,7 @@ async def start_mark_device(message: Message, state: FSMContext):
 async def mark_for_stock_device_id(message: Message, state: FSMContext):
     await state.update_data(stock_device_id=message.text)
     await message.answer(
-        text="Если вы хотите пометить прибор для ремонта введите <b>0</b>. Если он отремонтирован то <b>1</b>",
+        text="<i>Если вы хотите пометить прибор для ремонта введите</i> <b>0</b>. <i>Если он отремонтирован то</i> <b>1</b>",
     )
     await state.set_state(MarkDeviceState.mark)
 
@@ -180,11 +180,11 @@ async def show_the_devices_found(
     if callback.message:
         if isinstance(stock_device, StockDeviceData):
             await callback.message.answer(
-                text=f"""Id прибора: <code>{stock_device.stock_device_id}</code>
-Название прибора: <code>{stock_device.device_name}</code>
-Компания производитель прибора: <code>{stock_device.company_name}</code>
-Тип прибора: <code>{stock_device.type_title}</code>
-Дата последней очистки: <code>{stock_device.at_clean_date}</code>\n""",
+                text=f"""<i>Id прибора</i>: <code>{stock_device.stock_device_id}</code>
+<i>Название прибора</i>: <code>{stock_device.device_name}</code>
+<i>Компания производитель прибора</i>: <code>{stock_device.company_name}</code>
+<i>Тип прибора</i>: <code>{stock_device.type_title}</code>
+<i>Дата последней очистки</i>: <code>{stock_device.at_clean_date}</code>\n""",
                 reply_markup=kb_start,
             )
 

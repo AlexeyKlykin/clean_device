@@ -8,7 +8,7 @@ from src.query_scheme import (
     QuerySchemeForDeviceType,
     QuerySchemeForStockDevice,
 )
-from src.schema_for_validation import (
+from src.scheme_for_validation import (
     DeviceCompanyTable,
     DeviceTable,
     DeviceTypeTable,

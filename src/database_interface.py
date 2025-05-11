@@ -2,7 +2,7 @@ import sqlite3
 import logging
 from typing import Callable, Generator, Generic, List, TypeVar
 
-from src.schema_for_validation import AbstractTable
+from src.scheme_for_validation import AbstractTable
 
 
 logging.basicConfig(

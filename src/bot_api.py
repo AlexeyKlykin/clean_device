@@ -16,7 +16,7 @@ from aiogram.utils.keyboard import InlineKeyboardBuilder
 from aiogram.filters.callback_data import CallbackData
 
 
-from src.schema_for_validation import (
+from src.scheme_for_validation import (
     Lamp,
     OutputDeviceCompanyTable,
     OutputDeviceTable,

@@ -1,7 +1,7 @@
 from pytest import mark
 
 from src.bot_api import APIBotDb
-from src.schema_for_validation import (
+from src.scheme_for_validation import (
     OutputDeviceCompanyTable,
     OutputDeviceTable,
     OutputDeviceTypeTable,

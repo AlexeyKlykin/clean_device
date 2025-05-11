@@ -6,7 +6,7 @@ from src.query_scheme import (
     QuerySchemeForDeviceType,
     QuerySchemeForStockDevice,
 )
-from src.schema_for_validation import RowValue, TableRow
+from src.scheme_for_validation import RowValue, TableRow
 
 
 data_for_table_stock_device = [

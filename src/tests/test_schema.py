@@ -1,5 +1,5 @@
 from src.query_scheme import QuerySchemeForStockDevice
-from src.schema_for_validation import (
+from src.scheme_for_validation import (
     DeviceTypeTable,
     RowValue,
     StockBrokenDeviceData,
@@ -7,7 +7,7 @@ from src.schema_for_validation import (
 )
 
 
-def test_schema_class():
+def test_scheme_class():
     d = DeviceTypeTable(type_title="Beams", type_description="description beams")
     assert d.class_mro() == DeviceTypeTable
 

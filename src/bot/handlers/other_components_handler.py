@@ -4,7 +4,7 @@ from aiogram.types import Message
 
 from src.bot_api import run_api
 from src.bot.keyboard.keyboard_start import kb_start
-from src.schema_for_validation import (
+from src.scheme_for_validation import (
     OutputDeviceCompanyTable,
     OutputDeviceTable,
     OutputDeviceTypeTable,
@@ -31,11 +31,11 @@ async def get_devices(message: Message):
 
     if devices:
         await message.answer(
-            text="\n".join(
+            text="\n\n".join(
                 [
                     f"""Название модели прибора: <code>{item.device_name}</code>
 Название компании производителя: <code>{item.company_name}</code>
-Название типа прибора: <code>{item.type_title}</code>\n"""
+Название типа прибора: <code>{item.type_title}</code>"""
                     for item in devices
                     if isinstance(item, OutputDeviceTable)
                 ]
@@ -57,7 +57,7 @@ async def get_companies(message: Message):
                 [
                     f"""Название компании: <code>{item.company_name}</code>
 Страна производитель: <code>{item.producer_country}</code>
-Сайт компании: <code>{item.description_company}</code>\n"""
+Сайт компании: <code>{item.description_company}</code>"""
                     for item in companies
                     if isinstance(item, OutputDeviceCompanyTable)
                 ]

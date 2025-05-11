@@ -30,7 +30,7 @@ lamp_router = Router()
 @lamp_router.message(F.text == "/replacement_lamp")
 async def start_replacement_lamp(message: Message, state: FSMContext):
     await message.answer(
-        text="Введите номер прибора", reply_markup=ReplyKeyboardRemove()
+        text="<b>Введите номер прибора</b>", reply_markup=ReplyKeyboardRemove()
     )
     await state.set_state(ReplacementLamp.stock_device_id)
 
@@ -39,7 +39,7 @@ async def start_replacement_lamp(message: Message, state: FSMContext):
 async def stock_device_id_from_lamp(message: Message, state: FSMContext):
     await state.update_data(stock_device_id=message.text)
     await message.answer(
-        text="Выберите имя прибора",
+        text="<b>Выберите имя прибора</b>",
         reply_markup=bot_api_db.bot_inline_kb(Marker.REPLACEMENT_LAMP),
     )
 
@@ -56,13 +56,14 @@ async def device_name_from_lamp(
 
     if callback.message:
         if bot_api_db.is_availability_device_from_stockpile(data):
-            await callback.message.answer(text="Введите числовой ресурс лампы")
+            await callback.message.answer(text="<b>Введите числовой ресурс лампы</b>")
             await state.set_data(data)
             await state.set_state(ReplacementLamp.max_lamp_hours)
 
         else:
             await callback.message.answer(
-                text=f"Нет прибора с такими данными {data}", reply_markup=kb_add
+                text=f"<b>Нет прибора с такими данными</b> <code>{data}</code>",
+                reply_markup=kb_add,
             )
             await state.clear()
 
@@ -85,7 +86,7 @@ async def max_lamp_hours(message: Message, state: FSMContext):
 
 @lamp_router.message(F.text == "/check_lamp_hours")
 async def start_check_lamp_hours(message: Message, state: FSMContext):
-    await message.answer(text="Старт проверки ресурса лампы. Введите id прибора")
+    await message.answer(text="<b>Старт проверки ресурса лампы. Введите id прибора</b>")
     await state.set_state(SourceLampState.stock_device_id)
 
 
@@ -93,7 +94,7 @@ async def start_check_lamp_hours(message: Message, state: FSMContext):
 async def check_device_name(message: Message, state: FSMContext):
     await state.update_data(stock_device_id=message.text)
     await message.answer(
-        text="Выберите название прибора",
+        text="<b>Выберите название прибора</b>",
         reply_markup=bot_api_db.bot_inline_kb(Marker.DEVICE_FIL),
     )
 
@@ -109,13 +110,14 @@ async def check_device_FIL(
         if bot_api_db.is_availability_device_from_stockpile(data):
             await state.set_data(data)
             await callback.message.answer(
-                text="Введите текущее количество часов на приборе"
+                text="<b>Введите текущее количество часов на приборе</b>"
             )
             await state.set_state(SourceLampState.current_lamp_hours)
 
         else:
             await callback.message.answer(
-                text=f"Данный прибор {data} не найден", reply_markup=kb_start
+                text=f"<b>Данный прибор</b> <code>{data}</code> <b>не найден</b>",
+                reply_markup=kb_start,
             )
             await state.clear()
 

@@ -5,7 +5,7 @@ import sqlite3
 from abc import ABC, abstractmethod
 from typing import Callable, Dict, List, Tuple, Type, IO, Literal, TypeVar
 
-from src.schema_for_validation import (
+from src.scheme_for_validation import (
     AbstractTable,
     DeviceCompanyTable,
     DeviceTable,
@@ -151,9 +151,9 @@ class QueryException(Exception):
 
 class AbstractTableQueryScheme(ABC):
     @staticmethod
-    def request_row_factory(schema: Type[AbstractTable]):
+    def request_row_factory(scheme: Type[AbstractTable]):
         fabric = FabricRowFactory()
-        fabric.choice_row_factory = schema
+        fabric.choice_row_factory = scheme
         return fabric.choice_row_factory
 
     @abstractmethod
