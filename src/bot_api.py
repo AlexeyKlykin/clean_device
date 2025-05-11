@@ -16,6 +16,7 @@ from aiogram.utils.keyboard import InlineKeyboardBuilder
 from aiogram.filters.callback_data import CallbackData
 
 
+from src.data_handler import ApiBotHandler
 from src.scheme_for_validation import (
     DataForQuery,
     Lamp,
@@ -237,145 +238,26 @@ class AbstractAPIBotDb(Generic[Table, TableScheme], ABC):
         self, where_data: Dict[str, str]
     ) -> List[StockBrokenDeviceData] | str: ...
 
-    @abstractmethod
-    def database_get_items(
-        self,
-        query: TableScheme,
-        where_data: DataForQuery | List[DataForQuery] | None = None,
-    ) -> List[Table] | None: ...
-
-    @abstractmethod
-    def database_get_item(
-        self,
-        query: TableScheme,
-        where_data: DataForQuery | List[DataForQuery] | None = None,
-    ) -> Table | None: ...
-
-    @abstractmethod
-    def database_set_item(self, query: TableScheme, set_data: tuple): ...
-
-    @abstractmethod
-    def database_update_item(
-        self,
-        query: TableScheme,
-        set_data: DataForQuery | List[DataForQuery],
-        where_data: DataForQuery | List[DataForQuery],
-    ): ...
-
 
 class APIBotDb(AbstractAPIBotDb):
     def __init__(self, db_name: str) -> None:
         self.db_name = db_name
 
-    def database_update_item(
-        self,
-        query,
-        set_data,
-        where_data,
-    ):
-        """метод обновляющий данные в базе"""
-
-        query = query.query_update(set_data=set_data, where_data=where_data)
-
-        with DataBaseInterface(db_name=self.db_name) as conn:
-            cursor = conn.row_factory_for_connection(query[1])
-            conn.update(query=query[0], cursor=cursor)
-
-    def database_set_item(self, query, set_data):
-        query = query.query_set()
-
-        with DataBaseInterface(db_name=self.db_name) as conn:
-            cursor = conn.row_factory_for_connection(query[1])
-            conn.set(query=query[0], set_data=set_data, cursor=cursor)
-
-    def database_get_items(self, query, where_data=None):
-        if where_data:
-            query = query.query_get(where_data=where_data)
-
-        else:
-            query = query.query_get()
-
-        with DataBaseInterface(db_name=self.db_name) as conn:
-            cursor = conn.row_factory_for_connection(query[1])
-            return conn.get_all(query=query[0], cursor=cursor)
-
-    def database_get_item(self, query, where_data=None):
-        if where_data:
-            query = query.query_get(where_data=where_data)
-
-        else:
-            query = query.query_get()
-
-        with DataBaseInterface(db_name=self.db_name) as conn:
-            cursor = conn.row_factory_for_connection(query[1])
-            return conn.get(query=query[0], cursor=cursor)
-
-    def bot_get_devices_at_date(self, where_data):
-        with DataBaseInterface(db_name=self.db_name) as conn:
-            if validate_date(where_data["at_clean_date"]):
-                where_mogrif_data = DataForQuery(
-                    prefix="sd",
-                    table_row=TableRow("at_clean_date"),
-                    row_value=RowValue(where_data["at_clean_date"]),
-                )
-                query = QuerySchemeForStockDevice().query_get_search_with_device(
-                    where_data=where_mogrif_data
-                )
-                cursor = conn.row_factory_for_connection(query[1])
-                stock_devices = conn.get_all(query=query[0], cursor=cursor)
-
-                if stock_devices and all(
-                    isinstance(item, StockBrokenDeviceData) for item in stock_devices
-                ):
-                    return stock_devices
-
-                else:
-                    return "Нет приборов в эту дату"
-
-            else:
-                where_mogrif_data = DataForQuery(
-                    prefix="sd",
-                    table_row=TableRow("at_clean_date"),
-                    row_value=RowValue(modificate_date_to_str()),
-                )
-                query = QuerySchemeForStockDevice().query_get_search_with_device(
-                    where_data=where_mogrif_data
-                )
-                cursor = conn.row_factory_for_connection(query[1])
-                stock_devices = conn.get_all(query=query[0], cursor=cursor)
-
-                if stock_devices and all(
-                    isinstance(item, StockBrokenDeviceData) for item in stock_devices
-                ):
-                    return stock_devices
-
-                else:
-                    return "Нет приборов в эту дату"
-
     def bot_device_from_stockpile(self, where_data):
         """метод для получение прибора со склада по id и названию"""
 
-        query = QuerySchemeForStockDevice()
+        api = ApiBotHandler(self.db_name, QuerySchemeForStockDevice())
 
         match where_data:
             case {
                 "stock_device_id": str(stock_device_id),
                 "device_name": str(device_name),
             }:
-                row_stock_device_id = DataForQuery(
-                    prefix="sd",
-                    table_row=TableRow("stock_device_id"),
-                    row_value=RowValue(stock_device_id),
-                )
-                row_device_name = DataForQuery(
-                    prefix="d",
-                    table_row=TableRow("device_name"),
-                    row_value=RowValue(device_name),
-                )
-                where_mogrif_data = [row_stock_device_id, row_device_name]
-                stock_device = self.database_get_item(
-                    where_data=where_mogrif_data, query=query
-                )
+                row_where = {
+                    ("sd", "stock_device_id"): stock_device_id,
+                    ("d", "device_name"): device_name,
+                }
+                stock_device = api.database_get_item(extra_where_data=row_where)
 
                 if isinstance(stock_device, StockDeviceData):
                     return stock_device
@@ -389,16 +271,11 @@ class APIBotDb(AbstractAPIBotDb):
     def bot_device(self, device_name):
         """метод для получения прибора по имени"""
 
-        query = QuerySchemeForDevice()
+        api = ApiBotHandler(self.db_name, QuerySchemeForDevice())
 
         if device_name:
-            where_data = {TableRow("device_name"): RowValue(device_name)}
-            where_data = DataForQuery(
-                prefix="d",
-                table_row=TableRow("device_name"),
-                row_value=RowValue(device_name),
-            )
-            device = self.database_get_item(where_data=where_data, query=query)
+            row_where = {("d", "device_name"): device_name}
+            device = api.database_get_item(extra_where_data=row_where)
 
             if isinstance(device, OutputDeviceTable):
                 return device
@@ -412,15 +289,11 @@ class APIBotDb(AbstractAPIBotDb):
     def bot_company(self, company_name):
         """метод для получения данных о компании производителе"""
 
-        query = QuerySchemeForDeviceCompany()
+        api = ApiBotHandler(self.db_name, QuerySchemeForDeviceCompany())
 
         if company_name:
-            where_data = DataForQuery(
-                prefix="dc",
-                table_row=TableRow("company_name"),
-                row_value=RowValue(company_name),
-            )
-            company = self.database_get_item(where_data=where_data, query=query)
+            row_where = {("dc", "company_name"): company_name}
+            company = api.database_get_item(extra_where_data=row_where)
 
             if isinstance(company, OutputDeviceCompanyTable):
                 return company
@@ -434,15 +307,11 @@ class APIBotDb(AbstractAPIBotDb):
     def bot_device_type(self, type_title):
         """метод для получения данных о типе прибора"""
 
-        query = QuerySchemeForDeviceType()
+        api = ApiBotHandler(self.db_name, QuerySchemeForDeviceType())
 
         if type_title:
-            where_data = DataForQuery(
-                prefix="dt",
-                table_row=TableRow("type_title"),
-                row_value=RowValue(type_title),
-            )
-            device_type = self.database_get_item(where_data=where_data, query=query)
+            row_where = {("dt", "type_title"): type_title}
+            device_type = api.database_get_item(extra_where_data=row_where)
 
             if isinstance(device_type, OutputDeviceTypeTable):
                 return device_type
@@ -511,11 +380,53 @@ class APIBotDb(AbstractAPIBotDb):
                 else:
                     return f"Не найдено не одного прибора в ремонте за эту дату {date}"
 
+    def bot_get_devices_at_date(self, where_data):
+        with DataBaseInterface(db_name=self.db_name) as conn:
+            if validate_date(where_data["at_clean_date"]):
+                where_mogrif_data = DataForQuery(
+                    prefix="sd",
+                    table_row=TableRow("at_clean_date"),
+                    row_value=RowValue(where_data["at_clean_date"]),
+                )
+                query = QuerySchemeForStockDevice().query_get_search_with_device(
+                    where_data=where_mogrif_data
+                )
+                cursor = conn.row_factory_for_connection(query[1])
+                stock_devices = conn.get_all(query=query[0], cursor=cursor)
+
+                if stock_devices and all(
+                    isinstance(item, StockBrokenDeviceData) for item in stock_devices
+                ):
+                    return stock_devices
+
+                else:
+                    return "Нет приборов в эту дату"
+
+            else:
+                where_mogrif_data = DataForQuery(
+                    prefix="sd",
+                    table_row=TableRow("at_clean_date"),
+                    row_value=RowValue(modificate_date_to_str()),
+                )
+                query = QuerySchemeForStockDevice().query_get_search_with_device(
+                    where_data=where_mogrif_data
+                )
+                cursor = conn.row_factory_for_connection(query[1])
+                stock_devices = conn.get_all(query=query[0], cursor=cursor)
+
+                if stock_devices and all(
+                    isinstance(item, StockBrokenDeviceData) for item in stock_devices
+                ):
+                    return stock_devices
+
+                else:
+                    return "Нет приборов в эту дату"
+
     def bot_lst_device(self):
         """метод для получения всего списка приборов"""
 
-        query = QuerySchemeForDevice()
-        devices = self.database_get_items(query=query)
+        api = ApiBotHandler(self.db_name, QuerySchemeForDevice())
+        devices = api.database_get_items()
 
         if devices and all(isinstance(item, OutputDeviceTable) for item in devices):
             return devices
@@ -526,8 +437,8 @@ class APIBotDb(AbstractAPIBotDb):
     def bot_lst_company(self):
         """метод для получения всех компаний производителей"""
 
-        query = QuerySchemeForDeviceCompany()
-        companys = self.database_get_items(query=query)
+        api = ApiBotHandler(self.db_name, QuerySchemeForDeviceCompany())
+        companys = api.database_get_items()
 
         if companys and all(
             isinstance(item, OutputDeviceCompanyTable) for item in companys
@@ -540,8 +451,8 @@ class APIBotDb(AbstractAPIBotDb):
     def bot_lst_device_type(self):
         """метод получения всех типов приборов"""
 
-        query = QuerySchemeForDeviceType()
-        device_types = self.database_get_items(query=query)
+        api = ApiBotHandler(self.db_name, QuerySchemeForDeviceType())
+        device_types = api.database_get_items()
 
         if device_types and all(
             isinstance(item, OutputDeviceTypeTable) for item in device_types
@@ -554,15 +465,11 @@ class APIBotDb(AbstractAPIBotDb):
     def bot_device_id(self, device_name):
         """метод для получения id прибора"""
 
-        query = QuerySchemeForDevice()
+        api = ApiBotHandler(self.db_name, QuerySchemeForDevice())
 
         if device_name:
-            where_data = DataForQuery(
-                prefix="d",
-                table_row=TableRow("device_name"),
-                row_value=RowValue(device_name),
-            )
-            device = self.database_get_item(where_data=where_data, query=query)
+            row_where = {("d", "device_name"): device_name}
+            device = api.database_get_item(extra_where_data=row_where)
 
             if isinstance(device, OutputDeviceTable):
                 return str(device.device_id)
@@ -576,15 +483,11 @@ class APIBotDb(AbstractAPIBotDb):
     def bot_company_id(self, company_name):
         """метод для получения id компании производителя"""
 
-        query = QuerySchemeForDeviceCompany()
+        api = ApiBotHandler(self.db_name, QuerySchemeForDeviceCompany())
 
         if company_name:
-            where_data = DataForQuery(
-                prefix="dc",
-                table_row=TableRow("company_name"),
-                row_value=RowValue(company_name),
-            )
-            company = self.database_get_item(where_data=where_data, query=query)
+            row_where = {("dc", "company_name"): company_name}
+            company = api.database_get_item(extra_where_data=row_where)
 
             if isinstance(company, OutputDeviceCompanyTable):
                 return str(company.company_id)
@@ -598,15 +501,11 @@ class APIBotDb(AbstractAPIBotDb):
     def bot_type_id(self, type_title):
         """метод для получения всех типов приборов по названию типа"""
 
-        query = QuerySchemeForDeviceType()
+        api = ApiBotHandler(self.db_name, QuerySchemeForDeviceType())
 
         if type_title:
-            where_data = DataForQuery(
-                prefix="dt",
-                table_row=TableRow("type_title"),
-                row_value=RowValue(type_title),
-            )
-            device_type = self.database_get_item(where_data=where_data, query=query)
+            row_where = {("dt", "type_title"): type_title}
+            device_type = api.database_get_item(extra_where_data=row_where)
 
             if isinstance(device_type, OutputDeviceTypeTable):
                 return str(device_type.type_device_id)
@@ -620,28 +519,19 @@ class APIBotDb(AbstractAPIBotDb):
     def is_availability_device_from_stockpile(self, where_data):
         """метод проверки наличия прибора на складе"""
 
+        api = ApiBotHandler(self.db_name, QuerySchemeForStockDevice())
         check = False
-        query = QuerySchemeForStockDevice()
 
         match where_data:
             case {
                 "stock_device_id": str(stock_device_id),
                 "device_name": str(device_name),
             }:
-                row_stock_device_id = DataForQuery(
-                    prefix="sd",
-                    table_row=TableRow("stock_device_id"),
-                    row_value=RowValue(stock_device_id),
-                )
-                row_device_name = DataForQuery(
-                    prefix="d",
-                    table_row=TableRow("device_name"),
-                    row_value=RowValue(device_name),
-                )
-                where_mogrif_data = [row_stock_device_id, row_device_name]
-                stock_device = self.database_get_item(
-                    where_data=where_mogrif_data, query=query
-                )
+                row_where = {
+                    ("sd", "stock_device_id"): stock_device_id,
+                    ("d", "device_name"): device_name,
+                }
+                stock_device = api.database_get_item(extra_where_data=row_where)
 
                 if isinstance(stock_device, StockDeviceData):
                     check = True
@@ -654,16 +544,12 @@ class APIBotDb(AbstractAPIBotDb):
     def is_availability_device(self, device_name):
         """метод проверки наличия прибора в базе"""
 
+        api = ApiBotHandler(self.db_name, QuerySchemeForDevice())
         check = False
-        query = QuerySchemeForDevice()
 
         if device_name:
-            where_data = DataForQuery(
-                prefix="d",
-                table_row=TableRow("device_name"),
-                row_value=RowValue(device_name),
-            )
-            device = self.database_get_item(where_data=where_data, query=query)
+            row_where = {("d", "device_name"): device_name}
+            device = api.database_get_item(extra_where_data=row_where)
 
             if isinstance(device, OutputDeviceTable):
                 check = True
@@ -676,16 +562,12 @@ class APIBotDb(AbstractAPIBotDb):
     def is_availability_company(self, company_name):
         """метод проверки наличия компании в базе"""
 
+        api = ApiBotHandler(self.db_name, QuerySchemeForDeviceCompany())
         check = False
-        query = QuerySchemeForDeviceCompany()
 
         if company_name:
-            where_data = DataForQuery(
-                prefix="dc",
-                table_row=TableRow("company_name"),
-                row_value=RowValue(company_name),
-            )
-            company = self.database_get_item(where_data=where_data, query=query)
+            row_where = {("dc", "company_name"): company_name}
+            company = api.database_get_item(extra_where_data=row_where)
 
             if isinstance(company, OutputDeviceCompanyTable):
                 check = True
@@ -698,16 +580,12 @@ class APIBotDb(AbstractAPIBotDb):
     def is_availability_type(self, type_title):
         """метод проверки наличия типа устройства в списке"""
 
+        api = ApiBotHandler(self.db_name, QuerySchemeForDeviceType())
         check = False
-        query = QuerySchemeForDeviceType()
 
         if type_title:
-            where_data = DataForQuery(
-                prefix="dt",
-                table_row=TableRow("type_title"),
-                row_value=RowValue(type_title),
-            )
-            device_type = self.database_get_item(where_data=where_data, query=query)
+            row_where = {("dt", "type_title"): type_title}
+            device_type = api.database_get_item(extra_where_data=row_where)
 
             if isinstance(device_type, OutputDeviceTypeTable):
                 check = True
@@ -772,7 +650,7 @@ class APIBotDb(AbstractAPIBotDb):
     def bot_set_device_from_stockpile_by_name_and_id_to_db(self, set_data):
         """метод добавления данных о приборе со склада в базу"""
 
-        query = QuerySchemeForStockDevice()
+        api = ApiBotHandler(self.db_name, QuerySchemeForStockDevice())
 
         match set_data:
             case {
@@ -780,12 +658,16 @@ class APIBotDb(AbstractAPIBotDb):
                 "device_name": str(device_name),
                 "max_lamp_hours": str(max_lamp_hours),
             }:
-                date = modificate_date_to_str()
                 device_id = self.bot_device_id(device_name)
 
                 if device_id:
-                    item = (stock_device_id, device_id, max_lamp_hours, date)
-                    self.database_set_item(set_data=item, query=query)
+                    item = (
+                        stock_device_id,
+                        device_id,
+                        max_lamp_hours,
+                        modificate_date_to_str(),
+                    )
+                    api.database_set_item(extra_set_data=item)
                     return f"Прибор с именем {device_name} с id {stock_device_id} и часами лампы {max_lamp_hours} добавлен в базу данных"
 
                 else:
@@ -797,12 +679,11 @@ class APIBotDb(AbstractAPIBotDb):
                 "stock_device_id": str(stock_device_id),
                 "device_name": str(device_name),
             }:
-                date = modificate_date_to_str()
                 device_id = self.bot_device_id(device_name)
 
                 if device_id:
-                    item = (stock_device_id, device_id, 0, date)
-                    self.database_set_item(set_data=item, query=query)
+                    item = (stock_device_id, device_id, 0, modificate_date_to_str())
+                    api.database_set_item(extra_set_data=item)
                     return f"Прибор с именем {device_name} с id {stock_device_id} добавлен в базу данных"
 
                 else:
@@ -816,7 +697,7 @@ class APIBotDb(AbstractAPIBotDb):
     def bot_set_device_type(self, set_data):
         """метод добавляет тип прибора в базу данных"""
 
-        query = QuerySchemeForDeviceType()
+        api = ApiBotHandler(self.db_name, QuerySchemeForDeviceType())
 
         match set_data:
             case {
@@ -825,7 +706,7 @@ class APIBotDb(AbstractAPIBotDb):
                 "lamp_type": str(lamp_type),
             }:
                 item = (type_title, type_description, lamp_type)
-                self.database_set_item(set_data=item, query=query)
+                api.database_set_item(extra_set_data=item)
                 return f"Тип прибора с названием {type_title} добавлен в бд"
 
             case _:
@@ -834,7 +715,7 @@ class APIBotDb(AbstractAPIBotDb):
     def bot_set_device_company(self, set_data):
         """метод добавляет информацию о компании в базу данных"""
 
-        query = QuerySchemeForDeviceCompany()
+        api = ApiBotHandler(self.db_name, QuerySchemeForDeviceCompany())
 
         match set_data:
             case {
@@ -843,7 +724,7 @@ class APIBotDb(AbstractAPIBotDb):
                 "description_company": str(description_company),
             }:
                 item = (company_name, producer_coutry, description_company)
-                self.database_set_item(set_data=item, query=query)
+                api.database_set_item(extra_set_data=item)
                 return f"Компания с названием {company_name} добавлена в базу"
 
             case _:
@@ -852,7 +733,7 @@ class APIBotDb(AbstractAPIBotDb):
     def bot_set_device(self, set_data):
         """метод добавлеяет информацию о приборе в бд"""
 
-        query = QuerySchemeForDevice()
+        api = ApiBotHandler(self.db_name, QuerySchemeForDevice())
 
         match set_data:
             case {
@@ -863,7 +744,7 @@ class APIBotDb(AbstractAPIBotDb):
                 company_id = self.bot_company_id(company_name)
                 type_device_id = self.bot_type_id(type_title)
                 item = (device_name, company_id, type_device_id)
-                self.database_set_item(set_data=item, query=query)
+                api.database_set_item(extra_set_data=item)
                 return f"Прибор с именем {device_name} добавлен в базу"
 
             case _:
@@ -930,6 +811,8 @@ class APIBotDb(AbstractAPIBotDb):
     def bot_replacement_lamp(self, where_data: Dict[str, str]) -> str:
         """метод замены лампы в приборе"""
 
+        api = ApiBotHandler(self.db_name, QuerySchemeForStockDevice())
+
         match where_data:
             case {
                 "stock_device_id": str(stock_device_id),
@@ -939,27 +822,15 @@ class APIBotDb(AbstractAPIBotDb):
                 device_id = self.bot_device_id(device_name)
 
                 if device_id:
-                    query = QuerySchemeForStockDevice()
-                    row_stock_device_id = DataForQuery(
-                        prefix="sd",
-                        table_row=TableRow("stock_device_id"),
-                        row_value=RowValue(stock_device_id),
-                    )
-                    row_device_id = DataForQuery(
-                        prefix="d",
-                        table_row=TableRow("device_id"),
-                        row_value=RowValue(device_id),
-                    )
-                    where_mogrif_data = [row_stock_device_id, row_device_id]
-                    set_data = DataForQuery(
-                        prefix="sd",
-                        table_row=TableRow("max_lamp_hours"),
-                        row_value=RowValue(max_lamp_hours),
-                    )
+                    row_where = {
+                        ("sd", "stock_device_id"): stock_device_id,
+                        ("sd", "device_id"): device_id,
+                    }
+                    row_set = {"max_lamp_hours": max_lamp_hours}
 
                     try:
-                        self.database_update_item(
-                            query=query, set_data=set_data, where_data=where_mogrif_data
+                        api.database_update_item(
+                            extra_set_data=row_set, extra_where_data=row_where
                         )
                         return f"Лампа для прибора {device_name} c id {stock_device_id} удачно заменена"
 
@@ -975,11 +846,13 @@ class APIBotDb(AbstractAPIBotDb):
     def bot_change_device_status(self, where_data):
         """метод смены статуса прибора"""
 
+        api = ApiBotHandler(self.db_name, QuerySchemeForStockDevice())
+
         match where_data:
             case {
                 "stock_device_id": str(stock_device_id),
                 "device_name": str(device_name),
-                "mark": "0" as mark,
+                "mark": str(mark),
             }:
                 where_check_stock_device_id = {
                     "stock_device_id": stock_device_id,
@@ -992,84 +865,19 @@ class APIBotDb(AbstractAPIBotDb):
                     device_id = self.bot_device_id(device_name)
 
                     if device_id:
-                        row_stock_device_status = DataForQuery(
-                            prefix="sd",
-                            table_row=TableRow("stock_device_status"),
-                            row_value=RowValue(mark),
-                        )
-                        row_at_clean_date = DataForQuery(
-                            prefix="sd",
-                            table_row=TableRow("at_clean_date"),
-                            row_value=RowValue(modificate_date_to_str()),
-                        )
-                        row_stock_device_id = DataForQuery(
-                            prefix="sd",
-                            table_row=TableRow("stock_device_id"),
-                            row_value=RowValue(stock_device_id),
-                        )
-                        row_device_id = DataForQuery(
-                            prefix="sd",
-                            table_row=TableRow("device_id"),
-                            row_value=RowValue(device_id),
-                        )
-                        set_data = [row_stock_device_status, row_at_clean_date]
-                        where_mogrif_data = [row_stock_device_id, row_device_id]
-                        query = QuerySchemeForStockDevice()
-                        self.database_update_item(
-                            query=query, set_data=set_data, where_data=where_mogrif_data
+                        row_set = {
+                            "stock_device_status": mark,
+                            "at_clean_date": modificate_date_to_str(),
+                        }
+                        row_where = {
+                            ("sd", "stock_device_id"): stock_device_id,
+                            ("sd", "device_id"): device_id,
+                        }
+                        api.database_update_item(
+                            extra_set_data=row_set, extra_where_data=row_where
                         )
                         logger.warning(
                             f"Прибор {device_name} с id {stock_device_id} добавлен в ремонт"
-                        )
-
-                    else:
-                        return f"Прибора с таким названием {device_name} нет в базе"
-
-                else:
-                    return f"Прибора с таким id {stock_device_id} нет на складе"
-
-            case {
-                "stock_device_id": str(stock_device_id),
-                "device_name": str(device_name),
-                "mark": "1" as mark,
-            }:
-                where_check_stock_device_id = {
-                    "stock_device_id": stock_device_id,
-                    "device_name": device_name,
-                }
-
-                if self.is_availability_device_from_stockpile(
-                    where_check_stock_device_id
-                ):
-                    device_id = self.bot_device_id(device_name)
-
-                    if device_id:
-                        row_stock_device_status = DataForQuery(
-                            prefix="sd",
-                            table_row=TableRow("stock_device_status"),
-                            row_value=RowValue(mark),
-                        )
-                        row_at_clean_date = DataForQuery(
-                            prefix="sd",
-                            table_row=TableRow("at_clean_date"),
-                            row_value=RowValue(modificate_date_to_str()),
-                        )
-                        row_stock_device_id = DataForQuery(
-                            prefix="sd",
-                            table_row=TableRow("stock_device_id"),
-                            row_value=RowValue(stock_device_id),
-                        )
-                        row_device_id = DataForQuery(
-                            prefix="sd",
-                            table_row=TableRow("device_id"),
-                            row_value=RowValue(device_id),
-                        )
-                        where_mogrif_data = [row_stock_device_id, row_device_id]
-                        set_data = [row_stock_device_status, row_at_clean_date]
-
-                        query = QuerySchemeForStockDevice()
-                        self.database_update_item(
-                            query=query, set_data=set_data, where_data=where_mogrif_data
                         )
 
                     else:
@@ -1082,6 +890,8 @@ class APIBotDb(AbstractAPIBotDb):
                 return f"Переданные данные {where_data} не прошли валидацию"
 
     def bot_update_devices_stock_clearence_date(self, where_data, date=None):
+        api = ApiBotHandler(self.db_name, QuerySchemeForStockDevice())
+
         match where_data:
             case {
                 "stock_device_id": str(stock_device_id),
@@ -1090,42 +900,23 @@ class APIBotDb(AbstractAPIBotDb):
                 device_id = self.bot_device_id(device_name)
 
                 if device_id:
-                    row_stock_device_id = DataForQuery(
-                        prefix="sd",
-                        table_row=TableRow("stock_device_id"),
-                        row_value=RowValue(stock_device_id),
-                    )
-                    row_device_id = DataForQuery(
-                        prefix="sd",
-                        table_row=TableRow("device_id"),
-                        row_value=RowValue(device_id),
-                    )
-                    where_mogrif_data = [row_stock_device_id, row_device_id]
+                    row_where = {
+                        ("sd", "stock_device_id"): stock_device_id,
+                        ("sd", "device_id"): device_id,
+                    }
 
                     if isinstance(date, str) and validate_date(date):
-                        set_mogrif_data = DataForQuery(
-                            table_row=TableRow("at_clean_date"),
-                            row_value=RowValue(date),
-                        )
-                        query = QuerySchemeForStockDevice()
-                        self.database_update_item(
-                            query=query,
-                            set_data=set_mogrif_data,
-                            where_data=where_mogrif_data,
+                        set_mogrif_data = {"at_clean_date": date}
+                        api.database_update_item(
+                            extra_where_data=row_where,
+                            extra_set_data=set_mogrif_data,
                         )
                         return f"Данные прибора - {device_name} обновлены"
 
                     else:
-                        date = modificate_date_to_str()
-                        set_mogrif_data = DataForQuery(
-                            table_row=TableRow("at_clean_date"),
-                            row_value=RowValue(date),
-                        )
-                        query = QuerySchemeForStockDevice()
-                        self.database_update_item(
-                            query=query,
-                            set_data=set_mogrif_data,
-                            where_data=where_mogrif_data,
+                        set_mogrif_data = {"at_clean_date": modificate_date_to_str()}
+                        api.database_update_item(
+                            extra_set_data=set_mogrif_data, extra_where_data=row_where
                         )
                         return f"Данные прибора - {device_name} обновлены"
 
@@ -1163,11 +954,9 @@ class APIBotDb(AbstractAPIBotDb):
     def bot_lst_device_by_type_lamp_fil(self):
         """возвращаем приборы по типу лампа накаливания"""
 
-        where_data = DataForQuery(
-            prefix="dt", table_row=TableRow("lamp_type"), row_value=RowValue("FIL")
-        )
-        query = QuerySchemeForDevice()
-        devices = self.database_get_items(query=query, where_data=where_data)
+        where_data = {("dt", "lamp_type"): "FIL"}
+        api = ApiBotHandler(self.db_name, QuerySchemeForDevice())
+        devices = api.database_get_items(extra_where_data=where_data)
 
         if devices and all(isinstance(item, OutputDeviceTable) for item in devices):
             return [item for item in devices]

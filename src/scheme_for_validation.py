@@ -306,14 +306,6 @@ RowValue = NewType("RowValue", str)
 
 
 class DataForQuery(BaseModel):
-    """
-    Данные переданные в запросе в место после WHERE
-    # where_data = {TableRow("sd.at_clean_date"): RowValue("30-4-2025")}
-                    ||
-    # where_data = WhereDataForQuery(table_row="at_clean_date", row_value="30-4-2025")
-    # where_data.model_dump() - # {TableRow("sd.at_clean_date"): RowValue("30-4-2025")}
-    """
-
     prefix: Annotated[
         str | None,
         Field(
