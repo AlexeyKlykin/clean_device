@@ -9,6 +9,7 @@ from src.query_scheme import (
     QuerySchemeForStockDevice,
 )
 from src.scheme_for_validation import (
+    DataForQuery,
     DeviceCompanyTable,
     DeviceTable,
     DeviceTypeTable,
@@ -69,25 +70,35 @@ database_get_data = [
     (QuerySchemeForDeviceType(), None, OutputDeviceTypeTable),
     (
         QuerySchemeForDeviceType(),
-        {TableRow("type_title"): RowValue("Beam")},
+        DataForQuery(
+            prefix="dt", table_row=TableRow("type_title"), row_value=RowValue("Beam")
+        ),
         OutputDeviceTypeTable,
     ),
     (QuerySchemeForDeviceCompany(), None, OutputDeviceCompanyTable),
     (
         QuerySchemeForDeviceCompany(),
-        {TableRow("company_name"): RowValue("Clay Paky")},
+        DataForQuery(
+            prefix="dc",
+            table_row=TableRow("company_name"),
+            row_value=RowValue("Clay Paky"),
+        ),
         OutputDeviceCompanyTable,
     ),
     (QuerySchemeForDevice(), None, OutputDeviceTable),
     (
         QuerySchemeForDevice(),
-        {TableRow("device_name"): RowValue("K20")},
+        DataForQuery(
+            prefix="d", table_row=TableRow("device_name"), row_value=RowValue("K20")
+        ),
         OutputDeviceTable,
     ),
     (QuerySchemeForStockDevice(), None, StockDeviceData),
     (
         QuerySchemeForStockDevice(),
-        {TableRow("stock_device_id"): RowValue("1")},
+        DataForQuery(
+            prefix="sd", table_row=TableRow("stock_device_id"), row_value=RowValue("1")
+        ),
         StockDeviceData,
     ),
 ]
@@ -95,29 +106,38 @@ database_get_data = [
 database_update_data = [
     (
         QuerySchemeForDeviceType(),
-        {TableRow("type_title"): RowValue("Beams")},
-        {TableRow("type_title"): RowValue("Beam")},
+        DataForQuery(table_row=TableRow("type_title"), row_value=RowValue("Beams")),
+        DataForQuery(table_row=TableRow("type_title"), row_value=RowValue("Beam")),
         "select * from device_type where type_title='Beams'",
         DeviceTypeTable,
     ),
     (
         QuerySchemeForDeviceCompany(),
-        {TableRow("company_name"): RowValue("Clay Paku")},
-        {TableRow("company_name"): RowValue("Clay Paky")},
+        DataForQuery(
+            table_row=TableRow("company_name"),
+            row_value=RowValue("Clay Paku"),
+        ),
+        DataForQuery(
+            table_row=TableRow("company_name"),
+            row_value=RowValue("Clay Paky"),
+        ),
         "select * from device_company where company_name='Clay Paku'",
         DeviceCompanyTable,
     ),
     (
         QuerySchemeForDevice(),
-        {TableRow("device_name"): RowValue("K60")},
-        {TableRow("device_name"): RowValue("K20")},
+        DataForQuery(table_row=TableRow("device_name"), row_value=RowValue("K60")),
+        DataForQuery(table_row=TableRow("device_name"), row_value=RowValue("K20")),
         "select * from device where device_name='K60'",
         DeviceTable,
     ),
     (
         QuerySchemeForStockDevice(),
-        {TableRow("stock_device_id"): RowValue("8000")},
-        {TableRow("stock_device_id"): RowValue("1")},
+        DataForQuery(
+            table_row=TableRow("stock_device_id"),
+            row_value=RowValue("8000"),
+        ),
+        DataForQuery(table_row=TableRow("stock_device_id"), row_value=RowValue("1")),
         "select * from stock_device where stock_device_id='8000'",
         StockDeviceTable,
     ),

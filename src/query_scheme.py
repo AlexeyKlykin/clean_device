@@ -14,11 +14,11 @@ from src.scheme_for_validation import (
     OutputDeviceCompanyTable,
     OutputDeviceTable,
     OutputDeviceTypeTable,
-    RowValue,
     StockBrokenDeviceData,
     StockDeviceData,
     StockDeviceTable,
     TableRow,
+    DataForQuery,
 )
 
 logging.basicConfig(
@@ -63,7 +63,6 @@ CREATE_TABLE_STOCK_DEVICE = """CREATE TABLE IF NOT EXISTS stock_device
 """
 
 type Mode = Literal["r", "rb", "w", "wb"]
-type Status = Literal["0", "1"]
 
 
 class TempJS:
@@ -137,14 +136,17 @@ class QueryException(Exception):
         if args:
             self.message = args[0]
             self.value = args[1]
+
         else:
             self.message = None
             self.value = None
 
     def __str__(self):
         logger.warning(QueryException)
+
         if self.message:
             return "QueryException, {0} {1}".format(self.message, self.value)
+
         else:
             return "QueryException вызвана для класса запросов"
 
@@ -159,7 +161,7 @@ class AbstractTableQueryScheme(ABC):
     @abstractmethod
     def query_get(
         self,
-        where_data: Dict[TableRow, RowValue] | None = None,
+        where_data: DataForQuery | List[DataForQuery] | None = None,
     ) -> Tuple[str, Callable]:
         """строковый запрос для получения данных из таблицы"""
 
@@ -169,7 +171,9 @@ class AbstractTableQueryScheme(ABC):
 
     @abstractmethod
     def query_update(
-        self, where_data: Dict[TableRow, RowValue], set_data: Dict[TableRow, RowValue]
+        self,
+        where_data: DataForQuery | List[DataForQuery],
+        set_data: DataForQuery | List[DataForQuery],
     ) -> Tuple[str, Callable]:
         """строковый запрос для обновления данных в таблице"""
 
@@ -181,12 +185,14 @@ class AbstractTableQueryScheme(ABC):
         return ", ".join(scheme.table_alias())
 
     @staticmethod
-    def transform_where_data(data: Dict[TableRow, RowValue]) -> str:
+    def transform_where_data(data: DataForQuery | List[DataForQuery]) -> str:
         """метод для преобразования данных
         в строку условия поиска - row1=value1 and row2=value2"""
 
-        lst_set_data = [f"{key}='{val}'" for key, val in data.items()]
-        return " and ".join(lst_set_data)
+        if isinstance(data, DataForQuery):
+            return data.build
+
+        return " and ".join([item.build for item in data])
 
     @staticmethod
     def gen_set_value(scheme: Type[AbstractTable]):
@@ -196,12 +202,13 @@ class AbstractTableQueryScheme(ABC):
         return ", ".join("?" * len(scheme.table_rows()))
 
     @staticmethod
-    def transform_set_data(data: Dict[TableRow, RowValue]) -> str:
+    def transform_set_data(data: DataForQuery | List[DataForQuery]) -> str:
         """метод преобразования данных в строку условия вставки данных типа
         row1=val1, row2=val2"""
+        if isinstance(data, DataForQuery):
+            return data.build
 
-        lst_set_data = [f"{key}='{val}'" for key, val in data.items()]
-        return ", ".join(lst_set_data)
+        return ", ".join([item.build for item in data])
 
     @staticmethod
     def transform_rows(lst_rows: List[TableRow]):
@@ -218,23 +225,42 @@ TableScheme = TypeVar("TableScheme", bound=AbstractTableQueryScheme, contravaria
 class QuerySchemeForStockDevice(AbstractTableQueryScheme):
     """Класс формирования запросов для таблицы приборов на складе"""
 
-    def query_get_device_by_status(
-        self, where_data: Dict[TableRow, RowValue] | None = None, status: Status = "1"
-    ) -> Tuple[str, Callable]:
+    def query_get_search_with_device(self, where_data) -> Tuple[str, Callable]:
         """строковый запрос для получения данных о приборах со статусом"""
         query = """SELECT {rows}
 FROM {table}
 LEFT JOIN device d ON d.device_id = sd.device_id
 WHERE {where_data}"""
-        data = {TableRow("sd.stock_device_status"): RowValue(status)}
-
-        if where_data:
-            data.update(where_data)
-
         return query.format(
             rows=self.table_alias(StockBrokenDeviceData),
             table=StockBrokenDeviceData.table_name(),
-            where_data=self.transform_where_data(data),
+            where_data=self.transform_where_data(where_data),
+        ), self.request_row_factory(StockBrokenDeviceData)
+
+    def query_get_search_with_device_company(self, where_data) -> Tuple[str, Callable]:
+        """строковый запрос для получения данных о приборах со статусом"""
+        query = """SELECT {rows}
+FROM {table}
+LEFT JOIN device d ON d.device_id = sd.device_id
+LEFT JOIN device_company dc ON dc.company_id = d.company_id
+WHERE {where_data}"""
+        return query.format(
+            rows=self.table_alias(StockBrokenDeviceData),
+            table=StockBrokenDeviceData.table_name(),
+            where_data=self.transform_where_data(where_data),
+        ), self.request_row_factory(StockBrokenDeviceData)
+
+    def query_get_search_with_device_type(self, where_data) -> Tuple[str, Callable]:
+        """строковый запрос для получения данных о приборах со статусом"""
+        query = """SELECT {rows}
+FROM {table}
+LEFT JOIN device d ON d.device_id = sd.device_id
+LEFT JOIN device_type dt ON dt.type_device_id = d.type_device_id
+WHERE {where_data}"""
+        return query.format(
+            rows=self.table_alias(StockBrokenDeviceData),
+            table=StockBrokenDeviceData.table_name(),
+            where_data=self.transform_where_data(where_data),
         ), self.request_row_factory(StockBrokenDeviceData)
 
     def query_get(self, where_data=None):

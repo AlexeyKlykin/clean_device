@@ -4,7 +4,7 @@
 
 import inspect
 from typing import Annotated, Callable, List, Literal, NewType, Type
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, computed_field, model_validator
 
 
 type Lamp = Literal["LED", "FIL"]
@@ -303,6 +303,40 @@ class DeviceTable(AbstractTable):
 
 TableRow = NewType("TableRow", str)
 RowValue = NewType("RowValue", str)
+
+
+class DataForQuery(BaseModel):
+    """
+    Данные переданные в запросе в место после WHERE
+    # where_data = {TableRow("sd.at_clean_date"): RowValue("30-4-2025")}
+                    ||
+    # where_data = WhereDataForQuery(table_row="at_clean_date", row_value="30-4-2025")
+    # where_data.model_dump() - # {TableRow("sd.at_clean_date"): RowValue("30-4-2025")}
+    """
+
+    prefix: Annotated[
+        str | None,
+        Field(
+            max_length=3,
+            description="Префикс применяемый для сокращения имени таблицы перед именем столбца",
+        ),
+    ] = None
+    table_row: Annotated[TableRow, Field(min_length=4, description="Называние колонки")]
+    row_value: Annotated[
+        RowValue, Field(min_length=1, description="Данные для колонки")
+    ]
+
+    @model_validator(mode="after")
+    def table_row_prefix(self):
+        if self.prefix:
+            self.table_row = TableRow(f"{self.prefix}.{self.table_row}")
+
+        return self
+
+    @computed_field
+    @property
+    def build(self) -> str:
+        return f"{self.table_row}='{self.row_value}'"
 
 
 # фабрики

@@ -95,10 +95,20 @@ class TestAPIBotDb:
 
         assert result == [
             StockBrokenDeviceData(
+                stock_device_id=87,
+                device_name="Prima Mythos",
+                at_clean_date="30-4-2025",
+            ),
+            StockBrokenDeviceData(
                 stock_device_id=35, device_name="K20", at_clean_date="30-4-2025"
             ),
             StockBrokenDeviceData(
                 stock_device_id=43, device_name="K20", at_clean_date="30-4-2025"
+            ),
+            StockBrokenDeviceData(
+                stock_device_id=128,
+                device_name="Prima Mythos",
+                at_clean_date="30-4-2025",
             ),
             StockBrokenDeviceData(
                 stock_device_id=32, device_name="Arolla", at_clean_date="30-4-2025"

@@ -17,6 +17,7 @@ from aiogram.filters.callback_data import CallbackData
 
 
 from src.scheme_for_validation import (
+    DataForQuery,
     Lamp,
     OutputDeviceCompanyTable,
     OutputDeviceTable,
@@ -240,14 +241,14 @@ class AbstractAPIBotDb(Generic[Table, TableScheme], ABC):
     def database_get_items(
         self,
         query: TableScheme,
-        where_data: Dict[TableRow, RowValue] | None = None,
+        where_data: DataForQuery | List[DataForQuery] | None = None,
     ) -> List[Table] | None: ...
 
     @abstractmethod
     def database_get_item(
         self,
         query: TableScheme,
-        where_data: Dict[TableRow, RowValue] | None = None,
+        where_data: DataForQuery | List[DataForQuery] | None = None,
     ) -> Table | None: ...
 
     @abstractmethod
@@ -257,8 +258,8 @@ class AbstractAPIBotDb(Generic[Table, TableScheme], ABC):
     def database_update_item(
         self,
         query: TableScheme,
-        set_data: Dict[TableRow, RowValue],
-        where_data: Dict[TableRow, RowValue],
+        set_data: DataForQuery | List[DataForQuery],
+        where_data: DataForQuery | List[DataForQuery],
     ): ...
 
 
@@ -312,10 +313,12 @@ class APIBotDb(AbstractAPIBotDb):
     def bot_get_devices_at_date(self, where_data):
         with DataBaseInterface(db_name=self.db_name) as conn:
             if validate_date(where_data["at_clean_date"]):
-                where_mogrif_data = {
-                    TableRow("sd.at_clean_date"): RowValue(where_data["at_clean_date"])
-                }
-                query = QuerySchemeForStockDevice().query_get_device_by_status(
+                where_mogrif_data = DataForQuery(
+                    prefix="sd",
+                    table_row=TableRow("at_clean_date"),
+                    row_value=RowValue(where_data["at_clean_date"]),
+                )
+                query = QuerySchemeForStockDevice().query_get_search_with_device(
                     where_data=where_mogrif_data
                 )
                 cursor = conn.row_factory_for_connection(query[1])
@@ -330,9 +333,12 @@ class APIBotDb(AbstractAPIBotDb):
                     return "Нет приборов в эту дату"
 
             else:
-                date = modificate_date_to_str()
-                where_mogrif_data = {TableRow("sd.at_clean_date"): RowValue(date)}
-                query = QuerySchemeForStockDevice().query_get_device_by_status(
+                where_mogrif_data = DataForQuery(
+                    prefix="sd",
+                    table_row=TableRow("at_clean_date"),
+                    row_value=RowValue(modificate_date_to_str()),
+                )
+                query = QuerySchemeForStockDevice().query_get_search_with_device(
                     where_data=where_mogrif_data
                 )
                 cursor = conn.row_factory_for_connection(query[1])
@@ -356,16 +362,24 @@ class APIBotDb(AbstractAPIBotDb):
                 "stock_device_id": str(stock_device_id),
                 "device_name": str(device_name),
             }:
-                where_mogrif_data = {
-                    TableRow("sd.stock_device_id"): RowValue(stock_device_id),
-                    TableRow("d.device_name"): RowValue(device_name),
-                }
+                row_stock_device_id = DataForQuery(
+                    prefix="sd",
+                    table_row=TableRow("stock_device_id"),
+                    row_value=RowValue(stock_device_id),
+                )
+                row_device_name = DataForQuery(
+                    prefix="d",
+                    table_row=TableRow("device_name"),
+                    row_value=RowValue(device_name),
+                )
+                where_mogrif_data = [row_stock_device_id, row_device_name]
                 stock_device = self.database_get_item(
                     where_data=where_mogrif_data, query=query
                 )
 
                 if isinstance(stock_device, StockDeviceData):
                     return stock_device
+
                 else:
                     return f"Прибор с id {stock_device_id} и названием {device_name} не найден в базе"
 
@@ -379,6 +393,11 @@ class APIBotDb(AbstractAPIBotDb):
 
         if device_name:
             where_data = {TableRow("device_name"): RowValue(device_name)}
+            where_data = DataForQuery(
+                prefix="d",
+                table_row=TableRow("device_name"),
+                row_value=RowValue(device_name),
+            )
             device = self.database_get_item(where_data=where_data, query=query)
 
             if isinstance(device, OutputDeviceTable):
@@ -396,7 +415,11 @@ class APIBotDb(AbstractAPIBotDb):
         query = QuerySchemeForDeviceCompany()
 
         if company_name:
-            where_data = {TableRow("company_name"): RowValue(company_name)}
+            where_data = DataForQuery(
+                prefix="dc",
+                table_row=TableRow("company_name"),
+                row_value=RowValue(company_name),
+            )
             company = self.database_get_item(where_data=where_data, query=query)
 
             if isinstance(company, OutputDeviceCompanyTable):
@@ -414,7 +437,11 @@ class APIBotDb(AbstractAPIBotDb):
         query = QuerySchemeForDeviceType()
 
         if type_title:
-            where_data = {TableRow("type_title"): RowValue(type_title)}
+            where_data = DataForQuery(
+                prefix="dt",
+                table_row=TableRow("type_title"),
+                row_value=RowValue(type_title),
+            )
             device_type = self.database_get_item(where_data=where_data, query=query)
 
             if isinstance(device_type, OutputDeviceTypeTable):
@@ -431,11 +458,20 @@ class APIBotDb(AbstractAPIBotDb):
 
         with DataBaseInterface(db_name=self.db_name) as conn:
             if where_data and validate_date(where_data["at_clean_date"]):
-                where_mogrif_data = {
-                    TableRow("sd.at_clean_date"): RowValue(where_data["at_clean_date"]),
-                }
-                query = QuerySchemeForStockDevice().query_get_device_by_status(
-                    where_data=where_mogrif_data, status="0"
+                row_at_clean_date = DataForQuery(
+                    prefix="sd",
+                    table_row=TableRow("at_clean_date"),
+                    row_value=RowValue(where_data["at_clean_date"]),
+                )
+                row_status_0 = DataForQuery(
+                    prefix="sd",
+                    table_row=TableRow("stock_device_status"),
+                    row_value=RowValue("0"),
+                )
+                where_mogrif_data = [row_at_clean_date, row_status_0]
+
+                query = QuerySchemeForStockDevice().query_get_search_with_device(
+                    where_data=where_mogrif_data
                 )
                 cursor = conn.row_factory_for_connection(query[1])
                 stock_devices = conn.get_all(query=query[0], cursor=cursor)
@@ -450,11 +486,19 @@ class APIBotDb(AbstractAPIBotDb):
 
             else:
                 date = modificate_date_to_str()
-                where_mogrif_data = {
-                    TableRow("sd.at_clean_date"): RowValue(date),
-                }
-                query = QuerySchemeForStockDevice().query_get_device_by_status(
-                    where_data=where_mogrif_data, status="0"
+                row_at_clean_date = DataForQuery(
+                    prefix="sd",
+                    table_row=TableRow("at_clean_date"),
+                    row_value=RowValue(date),
+                )
+                row_status_0 = DataForQuery(
+                    prefix="sd",
+                    table_row=TableRow("stock_device_status"),
+                    row_value=RowValue("0"),
+                )
+                where_mogrif_data = [row_at_clean_date, row_status_0]
+                query = QuerySchemeForStockDevice().query_get_search_with_device(
+                    where_data=where_mogrif_data
                 )
                 cursor = conn.row_factory_for_connection(query[1])
                 stock_devices = conn.get_all(query=query[0], cursor=cursor)
@@ -513,7 +557,11 @@ class APIBotDb(AbstractAPIBotDb):
         query = QuerySchemeForDevice()
 
         if device_name:
-            where_data = {TableRow("device_name"): RowValue(device_name)}
+            where_data = DataForQuery(
+                prefix="d",
+                table_row=TableRow("device_name"),
+                row_value=RowValue(device_name),
+            )
             device = self.database_get_item(where_data=where_data, query=query)
 
             if isinstance(device, OutputDeviceTable):
@@ -531,7 +579,11 @@ class APIBotDb(AbstractAPIBotDb):
         query = QuerySchemeForDeviceCompany()
 
         if company_name:
-            where_data = {TableRow("company_name"): RowValue(company_name)}
+            where_data = DataForQuery(
+                prefix="dc",
+                table_row=TableRow("company_name"),
+                row_value=RowValue(company_name),
+            )
             company = self.database_get_item(where_data=where_data, query=query)
 
             if isinstance(company, OutputDeviceCompanyTable):
@@ -549,7 +601,11 @@ class APIBotDb(AbstractAPIBotDb):
         query = QuerySchemeForDeviceType()
 
         if type_title:
-            where_data = {TableRow("type_title"): RowValue(type_title)}
+            where_data = DataForQuery(
+                prefix="dt",
+                table_row=TableRow("type_title"),
+                row_value=RowValue(type_title),
+            )
             device_type = self.database_get_item(where_data=where_data, query=query)
 
             if isinstance(device_type, OutputDeviceTypeTable):
@@ -572,10 +628,17 @@ class APIBotDb(AbstractAPIBotDb):
                 "stock_device_id": str(stock_device_id),
                 "device_name": str(device_name),
             }:
-                where_mogrif_data = {
-                    TableRow("sd.stock_device_id"): RowValue(stock_device_id),
-                    TableRow("d.device_name"): RowValue(device_name),
-                }
+                row_stock_device_id = DataForQuery(
+                    prefix="sd",
+                    table_row=TableRow("stock_device_id"),
+                    row_value=RowValue(stock_device_id),
+                )
+                row_device_name = DataForQuery(
+                    prefix="d",
+                    table_row=TableRow("device_name"),
+                    row_value=RowValue(device_name),
+                )
+                where_mogrif_data = [row_stock_device_id, row_device_name]
                 stock_device = self.database_get_item(
                     where_data=where_mogrif_data, query=query
                 )
@@ -595,7 +658,11 @@ class APIBotDb(AbstractAPIBotDb):
         query = QuerySchemeForDevice()
 
         if device_name:
-            where_data = {TableRow("device_name"): RowValue(device_name)}
+            where_data = DataForQuery(
+                prefix="d",
+                table_row=TableRow("device_name"),
+                row_value=RowValue(device_name),
+            )
             device = self.database_get_item(where_data=where_data, query=query)
 
             if isinstance(device, OutputDeviceTable):
@@ -613,7 +680,11 @@ class APIBotDb(AbstractAPIBotDb):
         query = QuerySchemeForDeviceCompany()
 
         if company_name:
-            where_data = {TableRow("company_name"): RowValue(company_name)}
+            where_data = DataForQuery(
+                prefix="dc",
+                table_row=TableRow("company_name"),
+                row_value=RowValue(company_name),
+            )
             company = self.database_get_item(where_data=where_data, query=query)
 
             if isinstance(company, OutputDeviceCompanyTable):
@@ -631,7 +702,11 @@ class APIBotDb(AbstractAPIBotDb):
         query = QuerySchemeForDeviceType()
 
         if type_title:
-            where_data = {TableRow("type_title"): RowValue(type_title)}
+            where_data = DataForQuery(
+                prefix="dt",
+                table_row=TableRow("type_title"),
+                row_value=RowValue(type_title),
+            )
             device_type = self.database_get_item(where_data=where_data, query=query)
 
             if isinstance(device_type, OutputDeviceTypeTable):
@@ -865,11 +940,23 @@ class APIBotDb(AbstractAPIBotDb):
 
                 if device_id:
                     query = QuerySchemeForStockDevice()
-                    set_data = {TableRow("max_lamp_hours"): RowValue(max_lamp_hours)}
-                    where_mogrif_data = {
-                        TableRow("stock_device_id"): RowValue(stock_device_id),
-                        TableRow("device_id"): RowValue(device_id),
-                    }
+                    row_stock_device_id = DataForQuery(
+                        prefix="sd",
+                        table_row=TableRow("stock_device_id"),
+                        row_value=RowValue(stock_device_id),
+                    )
+                    row_device_id = DataForQuery(
+                        prefix="d",
+                        table_row=TableRow("device_id"),
+                        row_value=RowValue(device_id),
+                    )
+                    where_mogrif_data = [row_stock_device_id, row_device_id]
+                    set_data = DataForQuery(
+                        prefix="sd",
+                        table_row=TableRow("max_lamp_hours"),
+                        row_value=RowValue(max_lamp_hours),
+                    )
+
                     try:
                         self.database_update_item(
                             query=query, set_data=set_data, where_data=where_mogrif_data
@@ -905,16 +992,28 @@ class APIBotDb(AbstractAPIBotDb):
                     device_id = self.bot_device_id(device_name)
 
                     if device_id:
-                        set_data = {
-                            TableRow("stock_device_status"): RowValue(mark),
-                            TableRow("at_clean_date"): RowValue(
-                                modificate_date_to_str()
-                            ),
-                        }
-                        where_mogrif_data = {
-                            TableRow("stock_device_id"): RowValue(stock_device_id),
-                            TableRow("device_id"): RowValue(device_id),
-                        }
+                        row_stock_device_status = DataForQuery(
+                            prefix="sd",
+                            table_row=TableRow("stock_device_status"),
+                            row_value=RowValue(mark),
+                        )
+                        row_at_clean_date = DataForQuery(
+                            prefix="sd",
+                            table_row=TableRow("at_clean_date"),
+                            row_value=RowValue(modificate_date_to_str()),
+                        )
+                        row_stock_device_id = DataForQuery(
+                            prefix="sd",
+                            table_row=TableRow("stock_device_id"),
+                            row_value=RowValue(stock_device_id),
+                        )
+                        row_device_id = DataForQuery(
+                            prefix="sd",
+                            table_row=TableRow("device_id"),
+                            row_value=RowValue(device_id),
+                        )
+                        set_data = [row_stock_device_status, row_at_clean_date]
+                        where_mogrif_data = [row_stock_device_id, row_device_id]
                         query = QuerySchemeForStockDevice()
                         self.database_update_item(
                             query=query, set_data=set_data, where_data=where_mogrif_data
@@ -945,16 +1044,28 @@ class APIBotDb(AbstractAPIBotDb):
                     device_id = self.bot_device_id(device_name)
 
                     if device_id:
-                        set_data = {
-                            TableRow("stock_device_status"): RowValue(mark),
-                            TableRow("at_clean_date"): RowValue(
-                                modificate_date_to_str()
-                            ),
-                        }
-                        where_mogrif_data = {
-                            TableRow("stock_device_id"): RowValue(stock_device_id),
-                            TableRow("device_id"): RowValue(device_id),
-                        }
+                        row_stock_device_status = DataForQuery(
+                            prefix="sd",
+                            table_row=TableRow("stock_device_status"),
+                            row_value=RowValue(mark),
+                        )
+                        row_at_clean_date = DataForQuery(
+                            prefix="sd",
+                            table_row=TableRow("at_clean_date"),
+                            row_value=RowValue(modificate_date_to_str()),
+                        )
+                        row_stock_device_id = DataForQuery(
+                            prefix="sd",
+                            table_row=TableRow("stock_device_id"),
+                            row_value=RowValue(stock_device_id),
+                        )
+                        row_device_id = DataForQuery(
+                            prefix="sd",
+                            table_row=TableRow("device_id"),
+                            row_value=RowValue(device_id),
+                        )
+                        where_mogrif_data = [row_stock_device_id, row_device_id]
+                        set_data = [row_stock_device_status, row_at_clean_date]
 
                         query = QuerySchemeForStockDevice()
                         self.database_update_item(
@@ -979,13 +1090,23 @@ class APIBotDb(AbstractAPIBotDb):
                 device_id = self.bot_device_id(device_name)
 
                 if device_id:
-                    where_mogrif_data = {
-                        TableRow("stock_device_id"): RowValue(stock_device_id),
-                        TableRow("device_id"): RowValue(device_id),
-                    }
+                    row_stock_device_id = DataForQuery(
+                        prefix="sd",
+                        table_row=TableRow("stock_device_id"),
+                        row_value=RowValue(stock_device_id),
+                    )
+                    row_device_id = DataForQuery(
+                        prefix="sd",
+                        table_row=TableRow("device_id"),
+                        row_value=RowValue(device_id),
+                    )
+                    where_mogrif_data = [row_stock_device_id, row_device_id]
 
                     if isinstance(date, str) and validate_date(date):
-                        set_mogrif_data = {TableRow("at_clean_date"): RowValue(date)}
+                        set_mogrif_data = DataForQuery(
+                            table_row=TableRow("at_clean_date"),
+                            row_value=RowValue(date),
+                        )
                         query = QuerySchemeForStockDevice()
                         self.database_update_item(
                             query=query,
@@ -996,7 +1117,10 @@ class APIBotDb(AbstractAPIBotDb):
 
                     else:
                         date = modificate_date_to_str()
-                        set_mogrif_data = {TableRow("at_clean_date"): RowValue(date)}
+                        set_mogrif_data = DataForQuery(
+                            table_row=TableRow("at_clean_date"),
+                            row_value=RowValue(date),
+                        )
                         query = QuerySchemeForStockDevice()
                         self.database_update_item(
                             query=query,
@@ -1004,6 +1128,7 @@ class APIBotDb(AbstractAPIBotDb):
                             where_data=where_mogrif_data,
                         )
                         return f"Данные прибора - {device_name} обновлены"
+
                 else:
                     return f"Прибор {device_name} не найден"
 
@@ -1038,7 +1163,9 @@ class APIBotDb(AbstractAPIBotDb):
     def bot_lst_device_by_type_lamp_fil(self):
         """возвращаем приборы по типу лампа накаливания"""
 
-        where_data = {TableRow("dt.lamp_type"): RowValue("FIL")}
+        where_data = DataForQuery(
+            prefix="dt", table_row=TableRow("lamp_type"), row_value=RowValue("FIL")
+        )
         query = QuerySchemeForDevice()
         devices = self.database_get_items(query=query, where_data=where_data)
 

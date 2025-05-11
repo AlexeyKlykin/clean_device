@@ -6,7 +6,7 @@ from src.query_scheme import (
     QuerySchemeForDeviceType,
     QuerySchemeForStockDevice,
 )
-from src.scheme_for_validation import RowValue, TableRow
+from src.scheme_for_validation import DataForQuery, RowValue, TableRow
 
 
 data_for_table_stock_device = [
@@ -15,8 +15,12 @@ data_for_table_stock_device = [
         "SELECT sd.stock_device_id, d.device_name, dc.company_name, dt.type_title, sd.max_lamp_hours, sd.at_clean_date\nFROM stock_device as sd\nLEFT JOIN device d ON d.device_id = sd.device_id\nLEFT JOIN device_company dc ON dc.company_id = d.company_id\nLEFT JOIN device_type dt ON dt.type_device_id = d.type_device_id\n",
     ),
     (
-        {TableRow("at_clean_date"): RowValue("30-4-2025")},
-        "SELECT sd.stock_device_id, d.device_name, dc.company_name, dt.type_title, sd.max_lamp_hours, sd.at_clean_date\nFROM stock_device as sd\nLEFT JOIN device d ON d.device_id = sd.device_id\nLEFT JOIN device_company dc ON dc.company_id = d.company_id\nLEFT JOIN device_type dt ON dt.type_device_id = d.type_device_id\nWHERE at_clean_date='30-4-2025'\n",
+        DataForQuery(
+            prefix="sd",
+            table_row=TableRow("at_clean_date"),
+            row_value=RowValue("30-4-2025"),
+        ),
+        "SELECT sd.stock_device_id, d.device_name, dc.company_name, dt.type_title, sd.max_lamp_hours, sd.at_clean_date\nFROM stock_device as sd\nLEFT JOIN device d ON d.device_id = sd.device_id\nLEFT JOIN device_company dc ON dc.company_id = d.company_id\nLEFT JOIN device_type dt ON dt.type_device_id = d.type_device_id\nWHERE sd.at_clean_date='30-4-2025'\n",
     ),
     (
         None,
@@ -30,7 +34,11 @@ data_for_table_device = [
         "SELECT device_id, device_name, company_name, type_title\nFROM device as d\nLEFT JOIN device_company dc ON dc.company_id = d.company_id\nLEFT JOIN device_type dt ON dt.type_device_id = d.type_device_id\n",
     ),
     (
-        {TableRow("dc.company_name"): RowValue("Clay Paky")},
+        DataForQuery(
+            prefix="dc",
+            table_row=TableRow("company_name"),
+            row_value=RowValue("Clay Paky"),
+        ),
         "SELECT d.device_id, d.device_name, dc.company_name, dt.type_title\nFROM device as d\nLEFT JOIN device_company dc ON dc.company_id = d.company_id\nLEFT JOIN device_type dt ON dt.type_device_id = d.type_device_id\nWHERE dc.company_name='Clay Paky'\n",
     ),
     (
@@ -41,8 +49,12 @@ data_for_table_device = [
 
 data_for_table_device_company = [
     (
-        {TableRow("company_name"): RowValue("Clay Paky")},
-        "SELECT company_id, company_name, producer_country, description_company \nFROM device_company as dc\nWHERE company_name='Clay Paky'\n",
+        DataForQuery(
+            prefix="dc",
+            table_row=TableRow("company_name"),
+            row_value=RowValue("Clay Paky"),
+        ),
+        "SELECT company_id, company_name, producer_country, description_company \nFROM device_company as dc\nWHERE dc.company_name='Clay Paky'\n",
     ),
     (
         None,
@@ -52,8 +64,10 @@ data_for_table_device_company = [
 
 data_for_table_type_device = [
     (
-        {TableRow("type_title"): RowValue("Beam")},
-        "SELECT type_device_id, type_title, type_description, lamp_type \nFROM device_type as dt\nWHERE type_title='Beam'\n",
+        DataForQuery(
+            prefix="dt", table_row=TableRow("type_title"), row_value=RowValue("Beam")
+        ),
+        "SELECT type_device_id, type_title, type_description, lamp_type \nFROM device_type as dt\nWHERE dt.type_title='Beam'\n",
     ),
     (
         None,
@@ -63,19 +77,34 @@ data_for_table_type_device = [
 
 data_device_by_status = [
     (
-        {TableRow("sd.at_clean_date"): RowValue("30-4-2025")},
-        "1",
+        [
+            DataForQuery(
+                prefix="sd",
+                table_row=TableRow("at_clean_date"),
+                row_value=RowValue("30-4-2025"),
+            ),
+            DataForQuery(
+                prefix="sd",
+                table_row=TableRow("stock_device_status"),
+                row_value=RowValue("1"),
+            ),
+        ],
         "SELECT sd.stock_device_id, d.device_name, sd.at_clean_date\nFROM stock_device as sd\nLEFT JOIN device d ON d.device_id = sd.device_id\nWHERE sd.stock_device_status='1' and sd.at_clean_date='30-4-2025'",
     ),
     (
-        {TableRow("sd.at_clean_date"): RowValue("30-4-2025")},
-        "0",
+        [
+            DataForQuery(
+                prefix="sd",
+                table_row=TableRow("at_clean_date"),
+                row_value=RowValue("30-4-2025"),
+            ),
+            DataForQuery(
+                prefix="sd",
+                table_row=TableRow("stock_device_status"),
+                row_value=RowValue("0"),
+            ),
+        ],
         "SELECT sd.stock_device_id, d.device_name, sd.at_clean_date\nFROM stock_device as sd\nLEFT JOIN device d ON d.device_id = sd.device_id\nWHERE sd.stock_device_status='0' and sd.at_clean_date='30-4-2025'",
-    ),
-    (
-        None,
-        "0",
-        "SELECT sd.stock_device_id, d.device_name, sd.at_clean_date\nFROM stock_device as sd\nLEFT JOIN device d ON d.device_id = sd.device_id\nWHERE sd.stock_device_status='0'",
     ),
 ]
 
@@ -83,6 +112,47 @@ data_device_by_status = [
 @mark.query_table
 class TestQuerySchemeForStockDevice:
     """Класс тест для схемы приборов на складе"""
+
+    def test_query_get_search_with_device_type(self):
+        """тест: запроса прибора на складе по типу"""
+
+        query = QuerySchemeForStockDevice()
+        dn = DataForQuery(
+            prefix="d", table_row=TableRow("device_name"), row_value=RowValue("K20")
+        )
+        dt = DataForQuery(
+            prefix="dt",
+            table_row=TableRow("type_title"),
+            row_value=RowValue("Beam"),
+        )
+        where_data = [dn, dt]
+        result = query.query_get_search_with_device_type(where_data)
+
+        assert (
+            result[0]
+            == "SELECT sd.stock_device_id, d.device_name, sd.at_clean_date\nFROM stock_device as sd\nLEFT JOIN device d ON d.device_id = sd.device_id\nLEFT JOIN device_type dt ON dt.type_device_id = d.type_device_id\nWHERE d.device_name='K20' and dt.type_title='Beam'"
+        )
+
+    def test_query_get_search_with_device_company(self):
+        """тест: запроса прибора на складе по компании"""
+
+        query = QuerySchemeForStockDevice()
+
+        dn = DataForQuery(
+            prefix="d", table_row=TableRow("device_name"), row_value=RowValue("K20")
+        )
+        dc = DataForQuery(
+            prefix="dc",
+            table_row=TableRow("company_name"),
+            row_value=RowValue("Clay Paky"),
+        )
+        where_data = [dn, dc]
+        result = query.query_get_search_with_device_company(where_data)
+
+        assert (
+            result[0]
+            == "SELECT sd.stock_device_id, d.device_name, sd.at_clean_date\nFROM stock_device as sd\nLEFT JOIN device d ON d.device_id = sd.device_id\nLEFT JOIN device_company dc ON dc.company_id = d.company_id\nWHERE d.device_name='K20' and dc.company_name='Clay Paky'"
+        )
 
     @mark.parametrize("where_data, expected", data_for_table_stock_device)
     def test_query_get(self, where_data, expected):
@@ -108,24 +178,35 @@ class TestQuerySchemeForStockDevice:
         """тест: формирования запроса для обновления данных"""
 
         query = QuerySchemeForStockDevice()
-        where_data = {
-            TableRow("sd.stock_device_id"): RowValue("1"),
-            TableRow("d.device_name"): RowValue("K20"),
-        }
-        set_data = {TableRow("sd.at_clean_date"): RowValue("29-4-2025")}
-        result = query.query_update(where_data=where_data, set_data=set_data)
+        sdi = DataForQuery(
+            prefix="sd",
+            table_row=TableRow("stock_device_id"),
+            row_value=RowValue("1"),
+        )
+        dn = DataForQuery(
+            prefix="d",
+            table_row=TableRow("device_name"),
+            row_value=RowValue("K20"),
+        )
+        cd = DataForQuery(
+            prefix="sd",
+            table_row=TableRow("at_clean_date"),
+            row_value=RowValue("30-4-2025"),
+        )
+        where_data = [sdi, dn]
+        result = query.query_update(where_data=where_data, set_data=cd)
 
         assert (
             result[0]
-            == "UPDATE stock_device as sd SET sd.at_clean_date='29-4-2025' WHERE sd.stock_device_id='1' and d.device_name='K20'"
+            == "UPDATE stock_device as sd SET sd.at_clean_date='30-4-2025' WHERE sd.stock_device_id='1' and d.device_name='K20'"
         )
 
-    @mark.parametrize("where_data, status, expected", data_device_by_status)
-    def test_query_get_device_by_status(self, where_data, status, expected):
+    @mark.parametrize("where_data, expected", data_device_by_status)
+    def query_get_search_with_device(self, where_data, expected):
         """тест: формирование строкового запроса для получения данных склодского прибора по статусу"""
 
         query = QuerySchemeForStockDevice()
-        result = query.query_get_device_by_status(where_data=where_data, status=status)
+        result = query.query_get_search_with_device(where_data=where_data)
 
         assert result[0] == expected
 
@@ -158,10 +239,12 @@ class TestQuerySchemeForDevice:
         """тест: формирования запроса для обновления данных"""
 
         query = QuerySchemeForDevice()
-        where_data = {
-            TableRow("d.device_name"): RowValue("K20"),
-        }
-        set_data = {TableRow("d.device_name"): RowValue("K30")}
+        where_data = DataForQuery(
+            prefix="d", table_row=TableRow("device_name"), row_value=RowValue("K20")
+        )
+        set_data = DataForQuery(
+            prefix="d", table_row=TableRow("device_name"), row_value=RowValue("K30")
+        )
         result = query.query_update(where_data=where_data, set_data=set_data)
 
         assert (
@@ -198,10 +281,16 @@ class TestQuerySchemeForDeviceCompany:
         """тест: формирования запроса для обновления данных"""
 
         query = QuerySchemeForDeviceCompany()
-        where_data = {
-            TableRow("dc.company_name"): RowValue("Clay Paky"),
-        }
-        set_data = {TableRow("dc.company_name"): RowValue("Light Craft")}
+        where_data = DataForQuery(
+            prefix="dc",
+            table_row=TableRow("company_name"),
+            row_value=RowValue("Clay Paky"),
+        )
+        set_data = DataForQuery(
+            prefix="dc",
+            table_row=TableRow("company_name"),
+            row_value=RowValue("Light Craft"),
+        )
         result = query.query_update(where_data=where_data, set_data=set_data)
 
         assert (
@@ -238,10 +327,12 @@ class TestQuerySchemeForTypeDevice:
         """тест: формирования запроса для обновления данных"""
 
         query = QuerySchemeForDeviceType()
-        where_data = {
-            TableRow("dt.type_title"): RowValue("Beam"),
-        }
-        set_data = {TableRow("dt.type_title"): RowValue("Beams")}
+        where_data = DataForQuery(
+            prefix="dt", table_row=TableRow("type_title"), row_value=RowValue("Beam")
+        )
+        set_data = DataForQuery(
+            prefix="dt", table_row=TableRow("type_title"), row_value=RowValue("Beams")
+        )
         result = query.query_update(where_data=where_data, set_data=set_data)
 
         assert (
