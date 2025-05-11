@@ -54,6 +54,7 @@ docker rm bot_cont # для удаления контейнера
 # glow для форматирования md
 ```
 
+```tree
 ├── ./data_cache # файлы для вставки в бд и тестов
 ├── ./fill_in_the_table.py # вставка данных в бд при старте
 ├── ./main.py # файл запуска проекта
@@ -83,3 +84,4 @@ docker rm bot_cont # для удаления контейнера
 │   ├── ./src/tests/test_query_schemas.py
 │   └── ./src/tests/test_scheme.py
 └── ./src/utils.py # вспомогательные утилиты
+```
