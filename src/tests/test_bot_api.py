@@ -100,21 +100,9 @@ class TestAPIBotDb:
                 at_clean_date="30-4-2025",
             ),
             StockBrokenDeviceData(
-                stock_device_id=35, device_name="K20", at_clean_date="30-4-2025"
-            ),
-            StockBrokenDeviceData(
-                stock_device_id=43, device_name="K20", at_clean_date="30-4-2025"
-            ),
-            StockBrokenDeviceData(
                 stock_device_id=128,
                 device_name="Prima Mythos",
                 at_clean_date="30-4-2025",
-            ),
-            StockBrokenDeviceData(
-                stock_device_id=32, device_name="Arolla", at_clean_date="30-4-2025"
-            ),
-            StockBrokenDeviceData(
-                stock_device_id=9000, device_name="K90", at_clean_date="30-4-2025"
             ),
         ]
 
@@ -416,13 +404,14 @@ class TestAPIBotDb:
         """тест: api бота для смены статуса прибора на складе"""
 
         api = APIBotDb("clean_device_test.db")
-        where_data = {"stock_device_id": "35", "device_name": "K20", "mark": 1}
+        where_data = {"stock_device_id": "35", "device_name": "K20", "mark": "0"}
         api.bot_change_device_status(where_data=where_data)
 
         device_data = {"stock_device_id": "35", "device_name": "K20"}
         device = api.bot_device_from_stockpile(where_data=device_data)
+        print(device)
 
-        at_cleare = {"at_clean_date": "30-4-2025"}
+        at_cleare = {"at_clean_date": modificate_date_to_str()}
         result = api.bot_get_devices_at_date(where_data=at_cleare)
 
         if isinstance(device, StockDeviceData):

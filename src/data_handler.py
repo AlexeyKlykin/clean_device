@@ -102,7 +102,7 @@ class DatabaseQueryHandler(AbstractDatabaseQueryHandler):
     ) -> List[StockBrokenDeviceData] | None:
         if isinstance(self.query_handler, QuerySchemeForStockDevice):
             query = self.query_handler.query_get_search_with_device(
-                where_data=extra_where_data
+                where_data=self.transform_dict_from_data_query(extra_where_data)
             )
 
             with DataBaseInterface(db_name=self.db_name) as conn:
