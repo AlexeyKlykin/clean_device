@@ -6,12 +6,12 @@ from aiogram.types import ReplyKeyboardRemove
 
 from src.bot.keyboard.keyboard_start import kb_start, kb_add
 from src.bot_api import (
-    BotHandlerException,
     DeviceFILCallback,
     run_api,
     Marker,
 )
 from src.bot.states import SourceLampState, ReplacementLamp
+from src.data_handler import BotHandlerException
 
 logging.basicConfig(
     level=logging.WARNING,

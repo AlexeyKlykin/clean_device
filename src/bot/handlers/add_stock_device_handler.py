@@ -7,11 +7,11 @@ from aiogram.types import ReplyKeyboardRemove
 from src.bot.keyboard.keyboard_start import kb_start
 from src.bot.states import StockDeviceState
 from src.bot_api import (
-    BotHandlerException,
     run_api,
     DeviceCallback,
     Marker,
 )
+from src.data_handler import BotHandlerException
 
 logging.basicConfig(
     level=logging.WARNING,

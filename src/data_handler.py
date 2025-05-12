@@ -1,15 +1,41 @@
+import logging
 from abc import ABC, abstractmethod
 from typing import Dict, List, Tuple, TypeVar
 
 from src.database_interface import DataBaseInterface
-from src.query_scheme import AbstractTableQueryScheme
-from src.scheme_for_validation import AbstractTable, DataForQuery, RowValue, TableRow
+from src.query_scheme import AbstractTableQueryScheme, QuerySchemeForStockDevice
+from src.scheme_for_validation import (
+    AbstractTable,
+    DataForQuery,
+    RowValue,
+    StockBrokenDeviceData,
+    TableRow,
+)
+
+logging.basicConfig(
+    level=logging.WARNING,
+    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
+    datefmt="%Y-%m-%d %H:%M:%S",
+)
+logger = logging.getLogger(__name__)
+logger.addHandler(logging.StreamHandler())
+
+
+class BotHandlerException(Exception):
+    def __init__(self, *args: object) -> None:
+        if args:
+            self.message = args[0]
+        else:
+            self.message = None
+
+    def __str__(self) -> str:
+        return f"BotHandlerException, {0}".format(self.message)
 
 
 RowKey = TypeVar("RowKey", Tuple[str, str], str)
 
 
-class AbstractApiBotHandler(ABC):
+class AbstractDatabaseQueryHandler(ABC):
     @abstractmethod
     def database_get_items(
         self,
@@ -32,15 +58,23 @@ class AbstractApiBotHandler(ABC):
         extra_where_data: Dict[RowKey, str],
     ): ...
 
+    @abstractmethod
+    def database_get_search_by_row(
+        self, extra_where_data: Dict[RowKey, str]
+    ) -> List[StockBrokenDeviceData] | None: ...
 
-class ApiBotHandler(AbstractApiBotHandler):
+
+class DatabaseQueryHandler(AbstractDatabaseQueryHandler):
     def __init__(
         self,
         db_name: str,
-        query_handler: AbstractTableQueryScheme,
+        query_handler: AbstractTableQueryScheme | None = None,
     ) -> None:
         self.db_name = db_name
-        self.query_handler = query_handler
+        if query_handler:
+            self.query_handler = query_handler
+        else:
+            self.query_handler = QuerySchemeForStockDevice()
 
     @staticmethod
     def transform_dict_from_data_query(
@@ -62,6 +96,32 @@ class ApiBotHandler(AbstractApiBotHandler):
                 )
 
         return lst_data_for_query
+
+    def database_get_search_by_row(
+        self, extra_where_data: Dict[RowKey, str]
+    ) -> List[StockBrokenDeviceData] | None:
+        if isinstance(self.query_handler, QuerySchemeForStockDevice):
+            query = self.query_handler.query_get_search_with_device(
+                where_data=extra_where_data
+            )
+
+            with DataBaseInterface(db_name=self.db_name) as conn:
+                cursor = conn.row_factory_for_connection(query[1])
+                stock_devices = conn.get_all(query=query[0], cursor=cursor)
+
+                if stock_devices and all(
+                    isinstance(item, StockBrokenDeviceData) for item in stock_devices
+                ):
+                    return stock_devices
+
+                else:
+                    logging.warning(
+                        f"Не найдено не одного прибора в ремонте за эту дату {extra_where_data}"
+                    )
+        else:
+            raise BotHandlerException(
+                f"Вы работаете не с тем генератором запросов {self.query_handler}. Должен быть QuerySchemeForStockDevice"
+            )
 
     def database_update_item(self, extra_set_data, extra_where_data):
         """метод обновляющий данные в базе"""
@@ -113,4 +173,3 @@ class ApiBotHandler(AbstractApiBotHandler):
         with DataBaseInterface(db_name=self.db_name) as conn:
             cursor = conn.row_factory_for_connection(query[1])
             return conn.get(query=query[0], cursor=cursor)
-
