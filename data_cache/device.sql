@@ -11,4 +11,8 @@ INSERT INTO device (device_name,company_id,type_device_id) VALUES
 	 ('K10',1,1);
 INSERT INTO device (device_name,company_id,type_device_id) VALUES
 	 ('F230',2,4),
-	 ('Spot400',2,2);
+	 ('Spot400',2,2),
+	 ('K25',1,4),
+	 ('Arolla profile mp',1,6),
+	 ('Aqua perl pro',2,4),
+	 ('Quadra 800 frame profile',2,6);
