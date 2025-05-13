@@ -890,7 +890,7 @@ class APIBotDb(AbstractAPIBotDb):
         companys = self.bot_lst_company()
 
         return [
-            f"{item.company_name:.9}"
+            item.company_name
             for item in companys
             if isinstance(item, OutputDeviceCompanyTable)
         ]
@@ -899,7 +899,7 @@ class APIBotDb(AbstractAPIBotDb):
         device_type = self.bot_lst_device_type()
 
         return [
-            f"{item.type_title:.9}"
+            item.type_title
             for item in device_type
             if isinstance(item, OutputDeviceTypeTable)
         ]
@@ -908,9 +908,7 @@ class APIBotDb(AbstractAPIBotDb):
         device = self.bot_lst_device()
 
         return [
-            f"{item.device_name:.9}"
-            for item in device
-            if isinstance(item, OutputDeviceTable)
+            item.device_name for item in device if isinstance(item, OutputDeviceTable)
         ]
 
     def bot_lst_device_by_type_lamp_fil(self):
@@ -931,7 +929,7 @@ class APIBotDb(AbstractAPIBotDb):
 
         if isinstance(devices, list):
             return [
-                f"{item.device_name:.9}"
+                item.device_name
                 for item in devices
                 if isinstance(item, OutputDeviceTable)
             ]
