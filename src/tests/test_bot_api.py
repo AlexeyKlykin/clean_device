@@ -502,4 +502,4 @@ class TestAPIBotDb:
         api = APIBotDb("clean_device_test.db")
         res = api.bot_options_to_add_or_update(where_data)
 
-        assert res == expect
+        assert res[0] == expect

@@ -72,6 +72,7 @@ class Marker(StrEnum):
 
 if os.environ.get("TOKEN"):
     token = os.environ["TOKEN"]
+
 else:
     token = secrets["TOKEN"]
 
@@ -128,7 +129,15 @@ class AbstractAPIBotDb(Generic[Table, TableScheme], ABC):
     ) -> Tuple[str, bool]: ...
 
     @abstractmethod
-    def bot_options_to_add_or_update(self, where_data: Dict[str, str]) -> str: ...
+    def bot_options_to_add_or_update(
+        self, where_data: Dict[str, str]
+    ) -> (
+        str
+        | Tuple[
+            Lamp | str,
+            str,
+        ]
+    ): ...
 
     @abstractmethod
     def is_LED_lamp_type_by_device_name(self, device_name: str) -> bool | str: ...
@@ -546,7 +555,7 @@ class APIBotDb(AbstractAPIBotDb):
 
         return check
 
-    def bot_options_to_add_or_update(self, where_data) -> Lamp | str:
+    def bot_options_to_add_or_update(self, where_data) -> str | Tuple[Lamp | str, str]:
         match where_data:
             case {
                 "stock_device_id": str(),
@@ -557,7 +566,7 @@ class APIBotDb(AbstractAPIBotDb):
                         where_data
                     )
                     logger.warning(result_job)
-                    return "update"
+                    return "update", result_job
 
                 elif self.is_availability_device(device_name=device_name):
                     lamp_type = self.is_LED_lamp_type_by_device_name(device_name)
@@ -569,10 +578,10 @@ class APIBotDb(AbstractAPIBotDb):
                             )
                         )
                         logger.warning(result_job)
-                        return "LED"
+                        return "LED", result_job
 
                     else:
-                        return "FIL"
+                        return "FIL", str(where_data)
 
                 else:
                     return f"В базе отсутсвуют записи о приборе {device_name}"
@@ -881,7 +890,7 @@ class APIBotDb(AbstractAPIBotDb):
         companys = self.bot_lst_company()
 
         return [
-            item.company_name
+            f"{item.company_name:.9}"
             for item in companys
             if isinstance(item, OutputDeviceCompanyTable)
         ]
@@ -890,7 +899,7 @@ class APIBotDb(AbstractAPIBotDb):
         device_type = self.bot_lst_device_type()
 
         return [
-            item.type_title
+            f"{item.type_title:.9}"
             for item in device_type
             if isinstance(item, OutputDeviceTypeTable)
         ]
@@ -899,7 +908,9 @@ class APIBotDb(AbstractAPIBotDb):
         device = self.bot_lst_device()
 
         return [
-            item.device_name for item in device if isinstance(item, OutputDeviceTable)
+            f"{item.device_name:.9}"
+            for item in device
+            if isinstance(item, OutputDeviceTable)
         ]
 
     def bot_lst_device_by_type_lamp_fil(self):
@@ -920,7 +931,7 @@ class APIBotDb(AbstractAPIBotDb):
 
         if isinstance(devices, list):
             return [
-                item.device_name
+                f"{item.device_name:.9}"
                 for item in devices
                 if isinstance(item, OutputDeviceTable)
             ]

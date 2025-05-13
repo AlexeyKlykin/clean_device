@@ -63,32 +63,32 @@ async def add_stock_device(
         try:
             result_job = bot_api_db.bot_options_to_add_or_update(stock_device_data)
 
-            if result_job == "update":
+            if result_job[0] == "update":
                 await callback.message.answer(
-                    text=f"Данные обновленны <b>{result_job}</b>",
+                    text=f"Данные обновленны <b>{result_job[1]}</b>",
                     reply_markup=kb_start,
                 )
                 await state.clear()
 
-            elif result_job == "LED":
+            elif result_job[0] == "LED":
                 await callback.message.answer(
-                    text=f"Данные добавленны <code>{result_job}</code>",
+                    text=f"Данные добавленны <code>{result_job[1]}</code>",
                     reply_markup=kb_start,
                 )
                 await state.clear()
 
-            elif result_job == "FIL":
+            elif result_job[0] == "FIL":
                 await state.set_data(stock_device_data)
 
                 if callback.message:
                     await callback.message.answer(
-                        text="<b>У прибора лампа накаливания. Введите максимальное колличество часов</b>"
+                        text=f"<b>У прибора лампа накаливания. {result_job[1]} Введите максимальное колличество часов</b>"
                     )
                 await state.set_state(StockDeviceState.max_lamp_hours)
 
             else:
                 await callback.message.answer(
-                    text=f"В базе отсутствет запись <code>{stock_device_data}</code>",
+                    text=f"В базе отсутствет запись {result_job} <code>{stock_device_data}</code>",
                     reply_markup=kb_start,
                 )
                 await state.clear()
