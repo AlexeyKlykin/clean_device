@@ -8,6 +8,7 @@ from src.bot.keyboard.keyboard_start import kb_start
 from src.bot.states import AddDeviceCompany
 from src.bot_api import run_api
 from src.data_handler import BotHandlerException
+from src.message_handler import MessageDescription
 
 logging.basicConfig(
     level=logging.WARNING,
@@ -26,23 +27,24 @@ db_bot_api = run_api()
 
 @device_company_router.message(F.text == "/add_device_company")
 async def add_device_company_name(message: Message, state: FSMContext):
-    await message.answer(
-        "<i>Введите название компании</i>", reply_markup=ReplyKeyboardRemove()
-    )
+    mes_des = MessageDescription(message.text)
+    await message.answer(text=mes_des.description(), reply_markup=ReplyKeyboardRemove())
     await state.set_state(AddDeviceCompany.company_name)
 
 
 @device_company_router.message(AddDeviceCompany.company_name)
 async def add_producer_country(message: Message, state: FSMContext):
     await state.update_data(company_name=message.text)
-    await message.answer("<i>Введите название страны производителя</i>")
+    mes_des = MessageDescription("add_producer_country")
+    await message.reply(text=mes_des.description())
     await state.set_state(AddDeviceCompany.producer_country)
 
 
 @device_company_router.message(AddDeviceCompany.producer_country)
 async def add_description_company(message: Message, state: FSMContext):
     await state.update_data(producer_country=message.text)
-    await message.answer("<i>Введите описание или адрес сайта</i>")
+    mes_des = MessageDescription("add_description_company")
+    await message.reply(text=mes_des.description())
     await state.set_state(AddDeviceCompany.description_company)
 
 
@@ -50,13 +52,16 @@ async def add_description_company(message: Message, state: FSMContext):
 async def add_device_company(message: Message, state: FSMContext):
     await state.update_data(description_company=message.text)
     data = await state.get_data()
+    mes_des = MessageDescription("add_device_company")
 
     try:
         result_job = db_bot_api.bot_set_device_company(data)
-        await message.answer(f"<b>{result_job}</b>", reply_markup=kb_start)
+        mes_des.message_data = result_job
+        await message.reply(text=mes_des.description(), reply_markup=kb_start)
 
     except BotHandlerException as err:
         logger.warning(err)
+        await message.reply(text=mes_des.description())
 
     finally:
         await state.clear()

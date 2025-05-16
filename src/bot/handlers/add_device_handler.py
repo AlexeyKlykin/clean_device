@@ -12,6 +12,8 @@ from src.bot_api import (
     run_api,
     Marker,
 )
+from src.data_handler import BotHandlerException
+from src.message_handler import MessageDescription
 
 logging.basicConfig(
     level=logging.WARNING,
@@ -33,9 +35,8 @@ device_types_cache = set()
 
 @device_router.message(F.text == "/add_device")
 async def device(message: Message, state: FSMContext):
-    await message.answer(
-        text="<i>Введите название устройства</i>", reply_markup=ReplyKeyboardRemove()
-    )
+    mes_des = MessageDescription(message.text)
+    await message.answer(text=mes_des.description(), reply_markup=ReplyKeyboardRemove())
     await state.set_state(AddDevice.device_name)
     companys_cache.update(bot_api_db.bot_keyboard_company_name_lst())
     device_types_cache.update(bot_api_db.bot_keyboard_device_type_lst())
@@ -44,8 +45,9 @@ async def device(message: Message, state: FSMContext):
 @device_router.message(AddDevice.device_name)
 async def device_name(message: Message, state: FSMContext):
     await state.update_data(device_name=message.text)
-    await message.answer(
-        text="<i>Введите компанию производитель прибора</i>",
+    mes_des = MessageDescription("device_name")
+    await message.reply(
+        text=mes_des.description(),
         reply_markup=bot_api_db.bot_inline_kb(Marker.DCOMPANY),
     )
 
@@ -60,10 +62,11 @@ async def company_for_device(
     device_data = await state.get_data()
     device_data["company_name"] = callback_data.company_name
     await state.set_data(device_data)
+    mes_des = MessageDescription("company_for_device")
 
     if callback.message:
         await callback.message.answer(
-            text="<i>Выберите тип прибора</i>",
+            text=mes_des.description(),
             reply_markup=bot_api_db.bot_inline_kb(Marker.DTYPE),
         )
 
@@ -77,28 +80,22 @@ async def type_for_device(
     await callback.answer()
     device_data = await state.get_data()
     device_data["type_title"] = callback_data.type_title
-    result_job = bot_api_db.bot_set_device(device_data)
+    mes_des = MessageDescription("type_for_device")
 
     if callback.message:
-        if device_data["type_title"]:
+        try:
+            result_job = bot_api_db.bot_set_device(device_data)
+            mes_des.message_data = result_job
             await callback.message.answer(
-                text=f"<code>{result_job}</code>",
+                text=mes_des.description(),
                 reply_markup=kb_start,
             )
 
-        else:
+        except BotHandlerException:
+            logger.warning(BotHandlerException())
             await callback.message.answer(
-                text=f"<i>{result_job}</i>", reply_markup=kb_add
+                text=mes_des.description(), reply_markup=kb_add
             )
 
-    await state.clear()
-
-
-@device_router.callback_query(F.data == "/cancel")
-async def cance_stock(callback: CallbackQuery, state: FSMContext):
-    await callback.answer()
-    if callback.message:
-        await callback.message.answer(
-            text="<i>Очистка всех запросов</i>", reply_markup=kb_start
-        )
-    await state.clear()
+        finally:
+            await state.clear()

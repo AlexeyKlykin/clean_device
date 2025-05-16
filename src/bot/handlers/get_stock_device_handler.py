@@ -6,6 +6,7 @@ from aiogram.types import CallbackQuery, Message
 from src.bot.states import BrokenDevices, CleanDevices, GetStockDevice, MarkDeviceState
 from src.bot_api import DeviceCallback, Marker, run_api
 from src.bot.keyboard.keyboard_start import kb_start
+from src.message_handler import MessageDescription
 from src.scheme_for_validation import StockBrokenDeviceData, StockDeviceData
 
 logging.basicConfig(
@@ -24,6 +25,8 @@ bot_api_db = run_api()
 
 @get_stock_device_router.message(F.text == "/stock_device_at_date")
 async def start_get_stock_device_at_date(message: Message, state: FSMContext):
+    mes_des = MessageDescription(message.text)
+    await message.reply(text=mes_des.description())
     await message.answer(
         text="Введите дату в формате d-m-yyyy, чтобы вывести все устройства за эту дату"
     )

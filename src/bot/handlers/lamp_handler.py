@@ -12,6 +12,7 @@ from src.bot_api import (
 )
 from src.bot.states import SourceLampState, ReplacementLamp
 from src.data_handler import BotHandlerException
+from src.message_handler import MessageDescription
 
 logging.basicConfig(
     level=logging.WARNING,
@@ -29,9 +30,8 @@ lamp_router = Router()
 
 @lamp_router.message(F.text == "/replacement_lamp")
 async def start_replacement_lamp(message: Message, state: FSMContext):
-    await message.answer(
-        text="<b>Введите номер прибора</b>", reply_markup=ReplyKeyboardRemove()
-    )
+    mes_des = MessageDescription(message.text)
+    await message.answer(text=mes_des.description(), reply_markup=ReplyKeyboardRemove())
     await state.set_state(ReplacementLamp.stock_device_id)
 
 

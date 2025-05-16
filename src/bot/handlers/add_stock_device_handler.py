@@ -12,6 +12,7 @@ from src.bot_api import (
     Marker,
 )
 from src.data_handler import BotHandlerException
+from src.message_handler import MessageDescription
 
 logging.basicConfig(
     level=logging.WARNING,
@@ -32,8 +33,9 @@ devices_cache = set()
 
 @stock_device_router.message(F.text == "/add_stock_device")
 async def add_stock_device_id(message: Message, state: FSMContext):
+    mes_des = MessageDescription(message.text)
     await message.answer(
-        text="<i>Введите номер прибора на складе</i>",
+        text=mes_des.description(),
         reply_markup=ReplyKeyboardRemove(),
     )
     await state.set_state(StockDeviceState.stock_device_id)
@@ -43,8 +45,9 @@ async def add_stock_device_id(message: Message, state: FSMContext):
 @stock_device_router.message(StockDeviceState.stock_device_id)
 async def add_device_id_for_stock_device(message: Message, state: FSMContext):
     await state.update_data(stock_device_id=message.text)
+    mes_des = MessageDescription("add_device_id_for_stock_device")
     await message.answer(
-        text="<i>Введите название прибора</i>",
+        text=mes_des.description(),
         reply_markup=bot_api_db.bot_inline_kb(Marker.DEVICE),
     )
 
@@ -62,17 +65,19 @@ async def add_stock_device(
     if callback.message:
         try:
             result_job = bot_api_db.bot_options_to_add_or_update(stock_device_data)
+            mes_des = MessageDescription(result_job[0])
+            mes_des.message_data = result_job[1]
 
             if result_job[0] == "update":
                 await callback.message.answer(
-                    text=f"Данные обновленны <b>{result_job[1]}</b>",
+                    text=mes_des.description(),
                     reply_markup=kb_start,
                 )
                 await state.clear()
 
             elif result_job[0] == "LED":
                 await callback.message.answer(
-                    text=f"Данные добавленны <code>{result_job[1]}</code>",
+                    text=mes_des.description(),
                     reply_markup=kb_start,
                 )
                 await state.clear()
@@ -82,13 +87,16 @@ async def add_stock_device(
 
                 if callback.message:
                     await callback.message.answer(
-                        text=f"<b>У прибора лампа накаливания. {result_job[1]} Введите максимальное колличество часов</b>"
+                        text=mes_des.description(),
                     )
                 await state.set_state(StockDeviceState.max_lamp_hours)
 
             else:
+                mes_des = MessageDescription("lamp_error")
+                mes_des.message_data = (result_job, stock_device_data)
+
                 await callback.message.answer(
-                    text=f"В базе отсутствет запись {result_job} <code>{stock_device_data}</code>",
+                    text=mes_des.description(),
                     reply_markup=kb_start,
                 )
                 await state.clear()
@@ -103,28 +111,21 @@ async def add_stock_device(
 async def add_lamp_hours_from_stock_device(message: Message, state: FSMContext):
     await state.update_data(max_lamp_hours=message.text)
     data = await state.get_data()
+    mes_des = MessageDescription("add_lamp_hours_from_stock_device")
 
     try:
         result_job = bot_api_db.bot_set_device_from_stockpile_by_name_and_id_to_db(data)
+        mes_des.message_data = result_job
 
         if result_job:
             await message.answer(
-                text=f"Данные добавленны <code>{result_job}</code>",
+                text=mes_des.description(),
                 reply_markup=kb_start,
             )
 
     except BotHandlerException:
-        raise BotHandlerException()
+        await message.answer(text=mes_des.description())
+        logger.warning(BotHandlerException())
 
     finally:
         await state.clear()
-
-
-@stock_device_router.callback_query(F.data == "/cancel")
-async def cancel_stock(callback: CallbackQuery, state: FSMContext):
-    await callback.answer()
-    if callback.message:
-        await callback.message.answer(
-            text="<i>Очистка всех запросов</i>", reply_markup=kb_start
-        )
-    await state.clear()

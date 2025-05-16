@@ -3,7 +3,7 @@
 """
 
 import inspect
-from typing import Annotated, Callable, List, Literal, NewType, Type
+from typing import Annotated, Callable, Dict, List, Literal, NewType, Tuple, Type
 from pydantic import BaseModel, ConfigDict, Field, computed_field, model_validator
 
 
@@ -303,11 +303,13 @@ class DeviceTable(AbstractTable):
 
 TableRow = NewType("TableRow", str)
 RowValue = NewType("RowValue", str)
+type Prefix = Literal["sd", "d", "dt", "dc"]
+MessageInput = NewType("MessageInput", Dict[Tuple[Prefix, str] | str, str])
 
 
 class DataForQuery(BaseModel):
     prefix: Annotated[
-        str | None,
+        Prefix | None,
         Field(
             max_length=3,
             description="Префикс применяемый для сокращения имени таблицы перед именем столбца",

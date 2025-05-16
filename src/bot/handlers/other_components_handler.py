@@ -4,6 +4,7 @@ from aiogram.types import Message
 
 from src.bot_api import run_api
 from src.bot.keyboard.keyboard_start import kb_start
+from src.message_handler import MessageDescription
 from src.scheme_for_validation import (
     OutputDeviceCompanyTable,
     OutputDeviceTable,
@@ -28,6 +29,8 @@ bot_api_db = run_api()
 @other_components_router.message(F.text == "/get_devices")
 async def get_devices(message: Message):
     devices = bot_api_db.bot_lst_device()
+    mes_des = MessageDescription(message.text)
+    await message.reply(text=mes_des.description())
 
     if devices:
         await message.answer(

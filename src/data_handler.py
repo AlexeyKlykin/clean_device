@@ -1,12 +1,12 @@
 import logging
-from abc import ABC, abstractmethod
-from typing import Dict, List, Tuple, TypeVar
+from typing import List
 
 from src.database_interface import DataBaseInterface
 from src.query_scheme import AbstractTableQueryScheme, QuerySchemeForStockDevice
 from src.scheme_for_validation import (
     AbstractTable,
     DataForQuery,
+    MessageInput,
     RowValue,
     StockBrokenDeviceData,
     TableRow,
@@ -32,53 +32,14 @@ class BotHandlerException(Exception):
         return f"BotHandlerException, {0}".format(self.message)
 
 
-RowKey = TypeVar("RowKey", Tuple[str, str], str)
-
-
-class AbstractDatabaseQueryHandler(ABC):
-    @abstractmethod
-    def database_get_items(
-        self,
-        extra_where_data: Dict[RowKey, str] | None = None,
-    ) -> List[AbstractTable] | None: ...
-
-    @abstractmethod
-    def database_get_item(
-        self,
-        extra_where_data: Dict[RowKey, str] | None = None,
-    ) -> AbstractTable | None: ...
-
-    @abstractmethod
-    def database_set_item(self, extra_set_data: tuple): ...
-
-    @abstractmethod
-    def database_update_item(
-        self,
-        extra_set_data: Dict[RowKey, str],
-        extra_where_data: Dict[RowKey, str],
-    ): ...
-
-    @abstractmethod
-    def database_get_search_by_row(
-        self, extra_where_data: Dict[RowKey, str]
-    ) -> List[StockBrokenDeviceData] | None: ...
-
-
-class DatabaseQueryHandler(AbstractDatabaseQueryHandler):
-    def __init__(
-        self,
-        db_name: str,
-        query_handler: AbstractTableQueryScheme | None = None,
-    ) -> None:
+class DatabaseQueryHandler:
+    def __init__(self, db_name: str, query_handler: AbstractTableQueryScheme) -> None:
         self.db_name = db_name
-        if query_handler:
-            self.query_handler = query_handler
-        else:
-            self.query_handler = QuerySchemeForStockDevice()
+        self._query_handler = query_handler
 
     @staticmethod
     def transform_dict_from_data_query(
-        data_from_bot: Dict[RowKey, str],
+        data_from_bot: MessageInput,
     ) -> List[DataForQuery]:
         lst_data_for_query = []
         for key, val in data_from_bot.items():
@@ -98,10 +59,10 @@ class DatabaseQueryHandler(AbstractDatabaseQueryHandler):
         return lst_data_for_query
 
     def database_get_search_by_row(
-        self, extra_where_data: Dict[RowKey, str]
+        self, extra_where_data: MessageInput
     ) -> List[StockBrokenDeviceData] | None:
-        if isinstance(self.query_handler, QuerySchemeForStockDevice):
-            query = self.query_handler.query_get_search_with_device(
+        if isinstance(self._query_handler, QuerySchemeForStockDevice):
+            query = self._query_handler.query_get_search_with_device(
                 where_data=self.transform_dict_from_data_query(extra_where_data)
             )
 
@@ -118,15 +79,13 @@ class DatabaseQueryHandler(AbstractDatabaseQueryHandler):
                     logging.warning(
                         f"Не найдено не одного прибора в ремонте за эту дату {extra_where_data}"
                     )
-        else:
-            raise BotHandlerException(
-                f"Вы работаете не с тем генератором запросов {self.query_handler}. Должен быть QuerySchemeForStockDevice"
-            )
 
-    def database_update_item(self, extra_set_data, extra_where_data):
+    def database_update_item(
+        self, extra_set_data: MessageInput, extra_where_data: MessageInput
+    ):
         """метод обновляющий данные в базе"""
 
-        query = self.query_handler.query_update(
+        query = self._query_handler.query_update(
             set_data=self.transform_dict_from_data_query(data_from_bot=extra_set_data),
             where_data=self.transform_dict_from_data_query(
                 data_from_bot=extra_where_data
@@ -137,8 +96,8 @@ class DatabaseQueryHandler(AbstractDatabaseQueryHandler):
             cursor = conn.row_factory_for_connection(query[1])
             conn.update(query=query[0], cursor=cursor)
 
-    def database_set_item(self, extra_set_data):
-        query = self.query_handler.query_set()
+    def database_set_item(self, extra_set_data: tuple):
+        query = self._query_handler.query_set()
 
         with DataBaseInterface(db_name=self.db_name) as conn:
             cursor = conn.row_factory_for_connection(query[1])
@@ -148,27 +107,33 @@ class DatabaseQueryHandler(AbstractDatabaseQueryHandler):
                 cursor=cursor,
             )
 
-    def database_get_items(self, extra_where_data=None):
+    def database_get_items(
+        self,
+        extra_where_data: MessageInput | None = None,
+    ) -> List[AbstractTable] | None:
         if extra_where_data:
-            query = self.query_handler.query_get(
+            query = self._query_handler.query_get(
                 where_data=self.transform_dict_from_data_query(extra_where_data)
             )
 
         else:
-            query = self.query_handler.query_get()
+            query = self._query_handler.query_get()
 
         with DataBaseInterface(db_name=self.db_name) as conn:
             cursor = conn.row_factory_for_connection(query[1])
             return conn.get_all(query=query[0], cursor=cursor)
 
-    def database_get_item(self, extra_where_data=None):
+    def database_get_item(
+        self,
+        extra_where_data: MessageInput | None = None,
+    ) -> AbstractTable | None:
         if extra_where_data:
-            query = self.query_handler.query_get(
+            query = self._query_handler.query_get(
                 where_data=self.transform_dict_from_data_query(extra_where_data)
             )
 
         else:
-            query = self.query_handler.query_get()
+            query = self._query_handler.query_get()
 
         with DataBaseInterface(db_name=self.db_name) as conn:
             cursor = conn.row_factory_for_connection(query[1])
