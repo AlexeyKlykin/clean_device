@@ -41,4 +41,6 @@ INSERT INTO device_type (type_title,type_description,lamp_type) VALUES
     NEPTUNE 550 HYBRID. Всепогодный прибор SPOT/BEAM/WASH с CMY-синтезом цвета, колесом анимации и набором актуальных эффектов.','LED'),
 	 ('Strobe','прибор, позволяющий быстро воспроизводить повторяющиеся яркие световые импульсы.','LED'),
 	 ('Profile','None','LED'),
-	 ('Spotlight','Пушки','LED');
+	 ('Spotlight','Пушки','LED'),
+	 ('Beam-fil','None','FIL'),
+	 ('Hybrid fil','None','FIL');

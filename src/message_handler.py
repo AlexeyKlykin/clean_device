@@ -1,4 +1,10 @@
-from src.scheme_for_validation import StockBrokenDeviceData, StockDeviceData
+from src.scheme_for_validation import (
+    OutputDeviceCompanyTable,
+    OutputDeviceTable,
+    OutputDeviceTypeTable,
+    StockBrokenDeviceData,
+    StockDeviceData,
+)
 
 
 class MessageDescription:
@@ -134,6 +140,57 @@ class MessageDescription:
                 else:
                     return "Данные о приборе по ID не найдены"
 
+            case "device_FIL_none":
+                if self._message_data:
+                    return f"<b>Данный прибор</b> <code>{self.message_data}</code> <b>не найден</b>"
+                else:
+                    return "Данные для сообщения отсутствуют"
+
+            case "/get_devices":
+                if isinstance(self._message_data, list):
+                    return "\n\n".join(
+                        [
+                            f"""Название модели прибора: <code>{item.device_name}</code>
+    Название компании производителя: <code>{item.company_name}</code>
+    Название типа прибора: <code>{item.type_title}</code>"""
+                            for item in self.message_data
+                            if isinstance(item, OutputDeviceTable)
+                        ]
+                    )
+
+                else:
+                    return "Данные для сообщения отсутствуют"
+
+            case "/get_companies":
+                if isinstance(self._message_data, list):
+                    return "\n\n".join(
+                        [
+                            f"""Название компании: <code>{item.company_name}</code>
+Страна производитель: <code>{item.producer_country}</code>
+Сайт компании: <code>{item.description_company}</code>"""
+                            for item in self.message_data
+                            if isinstance(item, OutputDeviceCompanyTable)
+                        ]
+                    )
+
+                else:
+                    return "Нет данных для вставки сообщения"
+
+            case "/get_types":
+                if isinstance(self._message_data, list):
+                    return "\n\n".join(
+                        [
+                            f"""Название типа прибора: <code>{item.type_title}</code>
+Описание типа прибора: <code>{item.type_description:.150}</code>
+Тип лампы: <code>{item.lamp_type}</code>"""
+                            for item in self.message_data
+                            if isinstance(item, OutputDeviceTypeTable)
+                        ]
+                    )
+
+                else:
+                    return "Нет данных для вставки сообщения"
+
             case str(message):
                 return BUTTON_DESCRIPTION[message]
 
@@ -155,7 +212,7 @@ add = """<i>Вы в меню добавления информации о при
 get = """<i>Вы в меню отображения информации о приборах</i>
 <b>/get_stock_device</b> - <i>вывести на экран приборы со склада по id</i>
 <b>/get_broken_device</b> - <i>вывести на экран приборы в ремонте за определенную дату</i>
-<b>/get_devices</b> - <i>вывести на экран список приборов</i>
+<b>/get_devices</b> - <i>Вывести на экран все наименования приборов</i>
 <b>/get_companies</b> - <i>вывести на экран список компаний производителей</i>
 <b>/get_types</b> - <i>вывести на экран все типы приборов</i>
 <b>/mark_device</b> - <i>поместить прибор в ремонт или вывести из ремонта</i>
@@ -164,9 +221,6 @@ get = """<i>Вы в меню отображения информации о пр
 <b>/cancel</b> - <i>выход и очистка памяти</i>"""
 
 # get list components
-get_devices = """<i>Вы в меню вывода на экран списка приборов доступных в базе</i>"""
-get_companies = """<i>Вы в меню вывод на экран списка компаний производителей</i>"""
-get_types = """<i>Вы в меню вывода на экран списка типов приборов</i>"""
 cancel = """<i>Выход/Очистка</i>"""
 
 # add device type
@@ -212,11 +266,12 @@ check_device_name = "<b>Выберите название прибора</b>"
 check_device_FIL = "<b>Введите текущее количество часов на приборе</b>"
 check_lamp_hours = "<i>Результат проверки:</i> <b>{lamp_hours}</b>"
 
+
 # get stock device at date
 start_get_stock_device_at_date = """<i>Вы в меню вывода на экран информации о приборах за определенную дату</i> <b>Введите дату в формате d-m-yyyy, чтобы вывести все устройства за эту дату или 0 чтобы вывести приборы за текущую дату</b>"""
 
 # get broken device
-start_get_broken_device = """<i>Вы в меню вывода на экран приборов в ремонте за определенную дату. Следуйте инструкциям на экране</i> <i>Введите дату а формате</i> <b>d-m-yyyy</b>. <i>Или введите</i> <code>0</code> <i>чтобы вывести приборы за текущую дату</i>"""
+start_get_broken_device = """<i>Вы в меню вывода на экран приборов в ремонте за определенную дату. Следуйте инструкциям на экране</i> <i>Введите дату в формате</i> <b>d-m-yyyy</b>. <i>Или введите</i> <code>0</code> <i>чтобы выбрать приборы за текущую дату</i>"""
 
 # mark device
 mark_device = """<i>Вы можете поместить прибор в ремонт или вывести из ремонта. Следуйте инструкциям на экране</i> <b>Введите ID прибора</b>"""
@@ -226,7 +281,7 @@ mark_device_0 = "<b>Прибор помещен в ремонт</b>"
 mark_device_1 = "<b>Прибор выведен из ремонта</b>"
 
 # get stock device by id
-get_stock_device = """<i>Вы в меню вывода на экран приборов на складе по ID. Следуйте инструкциям на экране</i>"""
+get_stock_device = """<i>Вы в меню вывода на экран приборов на складе по ID. Следуйте инструкциям на экране. Введите ID прибора со склада</i>"""
 choice_stock_device_name = "<i>Выберите прибор</i>"
 
 BUTTON_DESCRIPTION = {
@@ -277,9 +332,6 @@ BUTTON_DESCRIPTION = {
     "company_for_device": company_for_device,
     "type_for_device": type_for_device,
     # get
-    "/get_devices": get_devices,
-    "/get_types": get_types,
-    "/get_companies": get_companies,
     "/start": start,
     "/add": add,
     "/get": get,

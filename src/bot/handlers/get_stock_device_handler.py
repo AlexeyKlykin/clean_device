@@ -39,10 +39,10 @@ async def get_stock_device_at_date(message: Message, state: FSMContext):
     mes_des.message_data = lst_devices
 
     if isinstance(lst_devices, list):
-        await message.answer(text=mes_des.description())
+        await message.answer(text=mes_des.description(), reply_markup=kb_start)
 
     else:
-        await message.answer(text=mes_des.description())
+        await message.answer(text=mes_des.description(), reply_markup=kb_get)
 
     await state.clear()
 
@@ -69,7 +69,7 @@ async def get_broken_device(message: Message, state: FSMContext):
         )
 
     else:
-        await message.answer(text=mes_des.description())
+        await message.answer(text=mes_des.description(), reply_markup=kb_get)
 
     await state.clear()
 
@@ -179,7 +179,7 @@ async def show_the_devices_found(
 
         else:
             await callback.message.answer(
-                text=mes_des.description(), reply_markup=kb_start
+                text=mes_des.description(), reply_markup=kb_get
             )
 
     await state.clear()

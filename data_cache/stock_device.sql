@@ -1,4 +1,4 @@
-INSERT OR IGNORE INTO stock_device (stock_device_id,at_clean_date,max_lamp_hours,stock_device_status,device_id) VALUES
+INSERT INTO stock_device (stock_device_id,at_clean_date,max_lamp_hours,stock_device_status,device_id) VALUES
 	 (31,'27-4-2025',0,1,1),
 	 (21,'27-4-2025',0,1,1),
 	 (52,'27-4-2025',0,1,1),
@@ -9,7 +9,7 @@ INSERT OR IGNORE INTO stock_device (stock_device_id,at_clean_date,max_lamp_hours
 	 (19,'27-4-2025',0,1,2),
 	 (58,'27-4-2025',0,1,2),
 	 (126,'27-4-2025',0,1,2);
-INSERT OR IGNORE INTO stock_device (stock_device_id,at_clean_date,max_lamp_hours,stock_device_status,device_id) VALUES
+INSERT INTO stock_device (stock_device_id,at_clean_date,max_lamp_hours,stock_device_status,device_id) VALUES
 	 (14,'27-4-2025',0,1,2),
 	 (81,'27-4-2025',0,1,2),
 	 (22,'27-4-2025',0,1,2),
@@ -19,19 +19,19 @@ INSERT OR IGNORE INTO stock_device (stock_device_id,at_clean_date,max_lamp_hours
 	 (60,'27-4-2025',0,1,2),
 	 (136,'27-4-2025',0,1,2),
 	 (72,'13-5-2025',0,1,2),
-	 (20,'27-4-2025',0,1,2);
-INSERT OR IGNORE INTO stock_device (stock_device_id,at_clean_date,max_lamp_hours,stock_device_status,device_id) VALUES
+	 (20,'14-5-2025',0,1,2);
+INSERT INTO stock_device (stock_device_id,at_clean_date,max_lamp_hours,stock_device_status,device_id) VALUES
 	 (10,'27-4-2025',0,1,2),
 	 (97,'27-4-2025',0,1,2),
 	 (7,'27-4-2025',0,1,2),
-	 (46,'27-4-2025',0,1,2),
+	 (46,'14-5-2025',0,1,2),
 	 (140,'27-4-2025',0,1,2),
 	 (34,'27-4-2025',0,1,3),
 	 (30,'27-4-2025',0,1,3),
 	 (87,'30-4-2025',0,0,3),
 	 (37,'27-4-2025',0,1,3),
 	 (86,'27-4-2025',0,1,3);
-INSERT OR IGNORE INTO stock_device (stock_device_id,at_clean_date,max_lamp_hours,stock_device_status,device_id) VALUES
+INSERT INTO stock_device (stock_device_id,at_clean_date,max_lamp_hours,stock_device_status,device_id) VALUES
 	 (116,'27-4-2025',0,1,3),
 	 (98,'27-4-2025',0,1,3),
 	 (89,'27-4-2025',0,1,3),
@@ -39,10 +39,10 @@ INSERT OR IGNORE INTO stock_device (stock_device_id,at_clean_date,max_lamp_hours
 	 (1,'27-4-2025',0,1,4),
 	 (2,'27-4-2025',0,1,4),
 	 (3,'27-4-2025',0,1,4),
-	 (9,'27-4-2025',0,1,4),
+	 (9,'16-5-2025',0,0,4),
 	 (96,'27-4-2025',0,1,4),
-	 (95,'27-4-2025',0,1,4);
-INSERT OR IGNORE INTO stock_device (stock_device_id,at_clean_date,max_lamp_hours,stock_device_status,device_id) VALUES
+	 (95,'16-5-2025',0,0,4);
+INSERT INTO stock_device (stock_device_id,at_clean_date,max_lamp_hours,stock_device_status,device_id) VALUES
 	 (33,'28-4-2025',0,1,5),
 	 (5,'28-4-2025',0,1,5),
 	 (66,'28-4-2025',0,1,5),
@@ -53,7 +53,7 @@ INSERT OR IGNORE INTO stock_device (stock_device_id,at_clean_date,max_lamp_hours
 	 (128,'30-4-2025',0,0,3),
 	 (32,'30-4-2025',0,1,6),
 	 (11,'9-5-2025',0,0,9);
-INSERT OR IGNORE INTO stock_device (stock_device_id,at_clean_date,max_lamp_hours,stock_device_status,device_id) VALUES
+INSERT INTO stock_device (stock_device_id,at_clean_date,max_lamp_hours,stock_device_status,device_id) VALUES
 	 (102,'9-5-2025',0,0,9),
 	 (137,'9-5-2025',0,0,2),
 	 (41,'9-5-2025',0,0,2),
@@ -64,7 +64,7 @@ INSERT OR IGNORE INTO stock_device (stock_device_id,at_clean_date,max_lamp_hours
 	 (66,'9-5-2025',0,0,2),
 	 (141,'9-5-2025',0,0,2),
 	 (116,'9-5-2025',0,0,12);
-INSERT OR IGNORE INTO stock_device (stock_device_id,at_clean_date,max_lamp_hours,stock_device_status,device_id) VALUES
+INSERT INTO stock_device (stock_device_id,at_clean_date,max_lamp_hours,stock_device_status,device_id) VALUES
 	 (91,'9-5-2025',0,0,9),
 	 (48,'9-5-2025',0,0,9),
 	 (78,'9-5-2025',0,0,2),
@@ -75,162 +75,30 @@ INSERT OR IGNORE INTO stock_device (stock_device_id,at_clean_date,max_lamp_hours
 	 (12,'9-5-2025',0,0,10),
 	 (74,'13-5-2025',0,1,13),
 	 (32,'13-5-2025',0,1,13);
-INSERT OR IGNORE INTO stock_device (stock_device_id,at_clean_date,max_lamp_hours,stock_device_status,device_id) VALUES
+INSERT INTO stock_device (stock_device_id,at_clean_date,max_lamp_hours,stock_device_status,device_id) VALUES
 	 (60,'13-5-2025',0,1,9),
 	 (75,'13-5-2025',0,1,9),
 	 (40,'13-5-2025',0,1,9),
-	 (78,'13-5-2025',0,1,14),
-	 (2,'13-5-2025',0,1,14),
+	 (78,'13-5-2025',0,1,6),
+	 (2,'13-5-2025',0,1,6),
 	 (10,'13-5-2025',0,1,15),
 	 (1,'13-5-2025',0,1,16),
 	 (23,'13-5-2025',0,1,2),
-	 (31,'27-4-2025',0,1,1),
-	 (21,'27-4-2025',0,1,1);
-INSERT OR IGNORE INTO stock_device (stock_device_id,at_clean_date,max_lamp_hours,stock_device_status,device_id) VALUES
-	 (52,'27-4-2025',0,1,1),
-	 (27,'27-4-2025',0,1,1),
-	 (15,'27-4-2025',0,1,1),
-	 (11,'27-4-2025',0,1,1),
-	 (40,'27-4-2025',0,1,1),
-	 (19,'27-4-2025',0,1,2),
-	 (58,'27-4-2025',0,1,2),
-	 (126,'27-4-2025',0,1,2),
-	 (14,'27-4-2025',0,1,2),
-	 (81,'27-4-2025',0,1,2);
-INSERT OR IGNORE INTO stock_device (stock_device_id,at_clean_date,max_lamp_hours,stock_device_status,device_id) VALUES
-	 (22,'27-4-2025',0,1,2),
-	 (131,'27-4-2025',0,1,2),
-	 (64,'27-4-2025',0,1,2),
-	 (51,'27-4-2025',0,1,2),
-	 (60,'27-4-2025',0,1,2),
-	 (136,'27-4-2025',0,1,2),
-	 (72,'27-4-2025',0,1,2),
-	 (20,'27-4-2025',0,1,2),
-	 (10,'27-4-2025',0,1,2),
-	 (97,'27-4-2025',0,1,2);
-INSERT OR IGNORE INTO stock_device (stock_device_id,at_clean_date,max_lamp_hours,stock_device_status,device_id) VALUES
-	 (7,'27-4-2025',0,1,2),
-	 (46,'27-4-2025',0,1,2),
-	 (140,'27-4-2025',0,1,2),
-	 (34,'27-4-2025',0,1,3),
-	 (30,'27-4-2025',0,1,3),
-	 (87,'30-4-2025',0,0,3),
-	 (37,'27-4-2025',0,1,3),
-	 (86,'27-4-2025',0,1,3),
-	 (116,'27-4-2025',0,1,3),
-	 (98,'27-4-2025',0,1,3);
-INSERT OR IGNORE INTO stock_device (stock_device_id,at_clean_date,max_lamp_hours,stock_device_status,device_id) VALUES
-	 (89,'27-4-2025',0,1,3),
-	 (36,'27-4-2025',0,1,3),
-	 (1,'27-4-2025',0,1,4),
-	 (2,'27-4-2025',0,1,4),
-	 (3,'27-4-2025',0,1,4),
-	 (9,'27-4-2025',0,1,4),
-	 (96,'27-4-2025',0,1,4),
-	 (95,'27-4-2025',0,1,4),
-	 (33,'28-4-2025',0,1,5),
-	 (5,'28-4-2025',0,1,5);
-INSERT OR IGNORE INTO stock_device (stock_device_id,at_clean_date,max_lamp_hours,stock_device_status,device_id) VALUES
-	 (66,'28-4-2025',0,1,5),
-	 (106,'28-4-2025',0,1,6),
-	 (93,'29-4-2025',0,1,3),
-	 (35,'30-4-2025',0,1,2),
-	 (43,'30-4-2025',0,1,2),
-	 (128,'30-4-2025',0,0,3),
-	 (32,'30-4-2025',0,1,6),
-	 (11,'9-5-2025',0,0,9),
-	 (102,'9-5-2025',0,0,9),
-	 (137,'9-5-2025',0,0,2);
-INSERT OR IGNORE INTO stock_device (stock_device_id,at_clean_date,max_lamp_hours,stock_device_status,device_id) VALUES
-	 (41,'9-5-2025',0,0,2),
-	 (115,'9-5-2025',0,0,2),
-	 (153,'9-5-2025',0,0,11),
-	 (124,'9-5-2025',0,0,11),
-	 (89,'9-5-2025',0,0,2),
-	 (66,'9-5-2025',0,0,2),
-	 (141,'9-5-2025',0,0,2),
-	 (116,'9-5-2025',0,0,12),
-	 (91,'9-5-2025',0,0,9),
-	 (48,'9-5-2025',0,0,9);
-INSERT OR IGNORE INTO stock_device (stock_device_id,at_clean_date,max_lamp_hours,stock_device_status,device_id) VALUES
-	 (78,'9-5-2025',0,0,2),
-	 (39,'9-5-2025',0,0,2),
-	 (2,'9-5-2025',0,0,10),
-	 (37,'9-5-2025',0,0,10),
-	 (11,'9-5-2025',0,0,10),
-	 (12,'9-5-2025',0,0,10),
-	 (31,'27-4-2025',0,1,1),
-	 (21,'27-4-2025',0,1,1),
-	 (52,'27-4-2025',0,1,1),
-	 (27,'27-4-2025',0,1,1);
-INSERT OR IGNORE INTO stock_device (stock_device_id,at_clean_date,max_lamp_hours,stock_device_status,device_id) VALUES
-	 (15,'27-4-2025',0,1,1),
-	 (11,'27-4-2025',0,1,1),
-	 (40,'27-4-2025',0,1,1),
-	 (19,'27-4-2025',0,1,2),
-	 (58,'27-4-2025',0,1,2),
-	 (126,'27-4-2025',0,1,2),
-	 (14,'27-4-2025',0,1,2),
-	 (81,'27-4-2025',0,1,2),
-	 (22,'27-4-2025',0,1,2),
-	 (131,'27-4-2025',0,1,2);
-INSERT OR IGNORE INTO stock_device (stock_device_id,at_clean_date,max_lamp_hours,stock_device_status,device_id) VALUES
-	 (64,'27-4-2025',0,1,2),
-	 (51,'27-4-2025',0,1,2),
-	 (60,'27-4-2025',0,1,2),
-	 (136,'27-4-2025',0,1,2),
-	 (72,'27-4-2025',0,1,2),
-	 (20,'27-4-2025',0,1,2),
-	 (10,'27-4-2025',0,1,2),
-	 (97,'27-4-2025',0,1,2),
-	 (7,'27-4-2025',0,1,2),
-	 (46,'27-4-2025',0,1,2);
-INSERT OR IGNORE INTO stock_device (stock_device_id,at_clean_date,max_lamp_hours,stock_device_status,device_id) VALUES
-	 (140,'27-4-2025',0,1,2),
-	 (34,'27-4-2025',0,1,3),
-	 (30,'27-4-2025',0,1,3),
-	 (87,'30-4-2025',0,0,3),
-	 (37,'27-4-2025',0,1,3),
-	 (86,'27-4-2025',0,1,3),
-	 (116,'27-4-2025',0,1,3),
-	 (98,'27-4-2025',0,1,3),
-	 (89,'27-4-2025',0,1,3),
-	 (36,'27-4-2025',0,1,3);
-INSERT OR IGNORE INTO stock_device (stock_device_id,at_clean_date,max_lamp_hours,stock_device_status,device_id) VALUES
-	 (1,'27-4-2025',0,1,4),
-	 (2,'27-4-2025',0,1,4),
-	 (3,'27-4-2025',0,1,4),
-	 (9,'27-4-2025',0,1,4),
-	 (96,'27-4-2025',0,1,4),
-	 (95,'27-4-2025',0,1,4),
-	 (33,'28-4-2025',0,1,5),
-	 (5,'28-4-2025',0,1,5),
-	 (66,'28-4-2025',0,1,5),
-	 (106,'28-4-2025',0,1,6);
-INSERT OR IGNORE INTO stock_device (stock_device_id,at_clean_date,max_lamp_hours,stock_device_status,device_id) VALUES
-	 (93,'29-4-2025',0,1,3),
-	 (35,'30-4-2025',0,1,2),
-	 (43,'30-4-2025',0,1,2),
-	 (128,'30-4-2025',0,0,3),
-	 (32,'30-4-2025',0,1,6),
-	 (11,'9-5-2025',0,0,9),
-	 (102,'9-5-2025',0,0,9),
-	 (137,'9-5-2025',0,0,2),
-	 (41,'9-5-2025',0,0,2),
-	 (115,'9-5-2025',0,0,2);
-INSERT OR IGNORE INTO stock_device (stock_device_id,at_clean_date,max_lamp_hours,stock_device_status,device_id) VALUES
-	 (153,'9-5-2025',0,0,11),
-	 (124,'9-5-2025',0,0,11),
-	 (89,'9-5-2025',0,0,2),
-	 (66,'9-5-2025',0,0,2),
-	 (141,'9-5-2025',0,0,2),
-	 (116,'9-5-2025',0,0,12),
-	 (91,'9-5-2025',0,0,9),
-	 (48,'9-5-2025',0,0,9),
-	 (78,'9-5-2025',0,0,2),
-	 (39,'9-5-2025',0,0,2);
-INSERT OR IGNORE INTO stock_device (stock_device_id,at_clean_date,max_lamp_hours,stock_device_status,device_id) VALUES
-	 (2,'9-5-2025',0,0,10),
-	 (37,'9-5-2025',0,0,10),
-	 (11,'9-5-2025',0,0,10),
-	 (12,'9-5-2025',0,0,10);
+	 (5,'13-5-2025',0,1,17),
+	 (63,'14-5-2025',0,1,2);
+INSERT INTO stock_device (stock_device_id,at_clean_date,max_lamp_hours,stock_device_status,device_id) VALUES
+	 (27,'14-5-2025',0,0,2),
+	 (138,'14-5-2025',0,1,2),
+	 (80,'14-5-2025',0,1,2),
+	 (57,'14-5-2025',0,0,2),
+	 (148,'14-5-2025',0,1,2),
+	 (56,'15-5-2025',2500,1,18),
+	 (81,'15-5-2025',2500,1,18),
+	 (57,'15-5-2025',750,0,7),
+	 (3,'15-5-2025',750,1,7),
+	 (17,'16-5-2025',0,0,8);
+INSERT INTO stock_device (stock_device_id,at_clean_date,max_lamp_hours,stock_device_status,device_id) VALUES
+	 (125,'16-5-2025',0,0,8),
+	 (40,'16-5-2025',0,0,4),
+	 (97,'16-5-2025',0,0,4),
+	 (8,'16-5-2025',0,0,4);

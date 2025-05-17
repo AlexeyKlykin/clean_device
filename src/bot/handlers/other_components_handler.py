@@ -5,11 +5,6 @@ from aiogram.types import Message
 from src.bot_api import run_api
 from src.bot.keyboard.keyboard_start import kb_start
 from src.message_handler import MessageDescription
-from src.scheme_for_validation import (
-    OutputDeviceCompanyTable,
-    OutputDeviceTable,
-    OutputDeviceTypeTable,
-)
 
 logging.basicConfig(
     level=logging.WARNING,
@@ -30,19 +25,11 @@ bot_api_db = run_api()
 async def get_devices(message: Message):
     devices = bot_api_db.bot_lst_device()
     mes_des = MessageDescription(message.text)
-    await message.reply(text=mes_des.description())
+    mes_des.message_data = devices
 
     if devices:
         await message.answer(
-            text="\n\n".join(
-                [
-                    f"""Название модели прибора: <code>{item.device_name}</code>
-Название компании производителя: <code>{item.company_name}</code>
-Название типа прибора: <code>{item.type_title}</code>"""
-                    for item in devices
-                    if isinstance(item, OutputDeviceTable)
-                ]
-            ),
+            text=mes_des.description(),
             reply_markup=kb_start,
         )
 
@@ -53,18 +40,12 @@ async def get_devices(message: Message):
 @other_components_router.message(F.text == "/get_companies")
 async def get_companies(message: Message):
     companies = bot_api_db.bot_lst_company()
+    mes_des = MessageDescription(message.text)
+    mes_des.message_data = companies
 
     if companies:
         await message.answer(
-            text="\n\n".join(
-                [
-                    f"""Название компании: <code>{item.company_name}</code>
-Страна производитель: <code>{item.producer_country}</code>
-Сайт компании: <code>{item.description_company}</code>"""
-                    for item in companies
-                    if isinstance(item, OutputDeviceCompanyTable)
-                ]
-            ),
+            text=mes_des.description(),
             reply_markup=kb_start,
         )
     else:
@@ -74,18 +55,12 @@ async def get_companies(message: Message):
 @other_components_router.message(F.text == "/get_types")
 async def get_device_types(message: Message):
     device_types = bot_api_db.bot_lst_device_type()
+    mes_des = MessageDescription(message.text)
+    mes_des.message_data = device_types
 
     if device_types:
         await message.answer(
-            text="\n\n".join(
-                [
-                    f"""Название типа прибора: <code>{item.type_title}</code>
-Описание типа прибора: <code>{item.type_description:.150}</code>
-Тип лампы: <code>{item.lamp_type}</code>"""
-                    for item in device_types
-                    if isinstance(item, OutputDeviceTypeTable)
-                ]
-            ),
+            text=mes_des.description(),
             reply_markup=kb_start,
         )
     else:

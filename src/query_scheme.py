@@ -45,9 +45,9 @@ CREATE_TABLE_DEVICE_TYPE = """CREATE TABLE IF NOT EXISTS device_type
 
 CREATE_TABLE_DEVICE = """CREATE TABLE IF NOT EXISTS device
     (device_id integer primary key AUTOINCREMENT,
-    device_name text not null unique,
-    company_id integer,
-    type_device_id integer,
+    device_name text not null,
+    company_id integer not null,
+    type_device_id integer not null,
     foreign key(company_id) references device_company(company_id),
     foreign key(type_device_id) references device_type(type_device_id))
 """

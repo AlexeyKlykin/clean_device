@@ -39,3 +39,10 @@ VALUES ('k20', 1, 1);
 SELECT d.device_name, dc.company_name, dt.type_title from device d
 left join device_company dc on dc.company_id = d.company_id
 left join device_type dt on dt.type_device_id = d.type_device_id;
+
+/* удалаяет дубликаты */
+delete from stock_device where id not in (
+	select min(sd.id) from stock_device sd
+	left join device d on d.device_id = sd.device_id 
+	group by sd.stock_device_id, d.device_id
+);

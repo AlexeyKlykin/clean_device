@@ -121,9 +121,11 @@ async def check_device_FIL(
             await state.set_state(SourceLampState.current_lamp_hours)
 
         else:
+            mes_des = MessageDescription("device_FIL_none")
+            mes_des.message_data = data
             await callback.message.answer(
-                text=f"<b>Данный прибор</b> <code>{data}</code> <b>не найден</b>",
-                reply_markup=kb_start,
+                text=mes_des.description(),
+                reply_markup=kb_get,
             )
             await state.clear()
 
