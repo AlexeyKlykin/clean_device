@@ -171,7 +171,7 @@ class TestQuerySchemeForStockDevice:
 
         assert (
             result[0]
-            == "INSERT INTO stock_device as sd (stock_device_id, device_id, max_lamp_hours, at_clean_date) VALUES (?, ?, ?, ?)"
+            == "INSERT OR IGNORE INTO stock_device as sd (stock_device_id, device_id, max_lamp_hours, at_clean_date) VALUES (?, ?, ?, ?)"
         )
 
     def test_query_update(self):

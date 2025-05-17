@@ -95,14 +95,16 @@ class TestAPIBotDb:
 
         assert result == [
             StockBrokenDeviceData(
-                stock_device_id=87,
-                device_name="Prima Mythos",
-                at_clean_date="30-4-2025",
+                stock_device_id=35, device_name="K20", at_clean_date="30-4-2025"
             ),
             StockBrokenDeviceData(
-                stock_device_id=128,
-                device_name="Prima Mythos",
-                at_clean_date="30-4-2025",
+                stock_device_id=43, device_name="K20", at_clean_date="30-4-2025"
+            ),
+            StockBrokenDeviceData(
+                stock_device_id=32, device_name="Arolla", at_clean_date="30-4-2025"
+            ),
+            StockBrokenDeviceData(
+                stock_device_id=9000, device_name="K90", at_clean_date="30-4-2025"
             ),
         ]
 
@@ -409,10 +411,9 @@ class TestAPIBotDb:
 
         device_data = {"stock_device_id": "35", "device_name": "K20"}
         device = api.bot_device_from_stockpile(where_data=device_data)
-        print(device)
 
         at_cleare = {"at_clean_date": modificate_date_to_str()}
-        result = api.bot_get_devices_at_date(where_data=at_cleare)
+        result = api.bot_lst_broken_device_from_stockpile(where_data=at_cleare)
 
         if isinstance(device, StockDeviceData):
             assert device.stock_device_id in [

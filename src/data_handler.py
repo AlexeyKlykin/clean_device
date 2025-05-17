@@ -35,7 +35,7 @@ class BotHandlerException(Exception):
 class DatabaseQueryHandler:
     def __init__(self, db_name: str, query_handler: AbstractTableQueryScheme) -> None:
         self.db_name = db_name
-        self._query_handler = query_handler
+        self.query_handler = query_handler
 
     @staticmethod
     def transform_dict_from_data_query(
@@ -61,8 +61,8 @@ class DatabaseQueryHandler:
     def database_get_search_by_row(
         self, extra_where_data: MessageInput
     ) -> List[StockBrokenDeviceData] | None:
-        if isinstance(self._query_handler, QuerySchemeForStockDevice):
-            query = self._query_handler.query_get_search_with_device(
+        if isinstance(self.query_handler, QuerySchemeForStockDevice):
+            query = self.query_handler.query_get_search_with_device(
                 where_data=self.transform_dict_from_data_query(extra_where_data)
             )
 
@@ -85,7 +85,7 @@ class DatabaseQueryHandler:
     ):
         """метод обновляющий данные в базе"""
 
-        query = self._query_handler.query_update(
+        query = self.query_handler.query_update(
             set_data=self.transform_dict_from_data_query(data_from_bot=extra_set_data),
             where_data=self.transform_dict_from_data_query(
                 data_from_bot=extra_where_data
@@ -97,7 +97,7 @@ class DatabaseQueryHandler:
             conn.update(query=query[0], cursor=cursor)
 
     def database_set_item(self, extra_set_data: tuple):
-        query = self._query_handler.query_set()
+        query = self.query_handler.query_set()
 
         with DataBaseInterface(db_name=self.db_name) as conn:
             cursor = conn.row_factory_for_connection(query[1])
@@ -112,12 +112,12 @@ class DatabaseQueryHandler:
         extra_where_data: MessageInput | None = None,
     ) -> List[AbstractTable] | None:
         if extra_where_data:
-            query = self._query_handler.query_get(
+            query = self.query_handler.query_get(
                 where_data=self.transform_dict_from_data_query(extra_where_data)
             )
 
         else:
-            query = self._query_handler.query_get()
+            query = self.query_handler.query_get()
 
         with DataBaseInterface(db_name=self.db_name) as conn:
             cursor = conn.row_factory_for_connection(query[1])
@@ -128,12 +128,12 @@ class DatabaseQueryHandler:
         extra_where_data: MessageInput | None = None,
     ) -> AbstractTable | None:
         if extra_where_data:
-            query = self._query_handler.query_get(
+            query = self.query_handler.query_get(
                 where_data=self.transform_dict_from_data_query(extra_where_data)
             )
 
         else:
-            query = self._query_handler.query_get()
+            query = self.query_handler.query_get()
 
         with DataBaseInterface(db_name=self.db_name) as conn:
             cursor = conn.row_factory_for_connection(query[1])

@@ -4,7 +4,7 @@ from aiogram.fsm.context import FSMContext
 from aiogram.types import CallbackQuery, Message
 from aiogram.types import ReplyKeyboardRemove
 
-from src.bot.keyboard.keyboard_start import kb_start, kb_add
+from src.bot.keyboard.keyboard_start import kb_start, kb_add, kb_get
 from src.bot_api import (
     DeviceFILCallback,
     run_api,
@@ -38,8 +38,9 @@ async def start_replacement_lamp(message: Message, state: FSMContext):
 @lamp_router.message(ReplacementLamp.stock_device_id)
 async def stock_device_id_from_lamp(message: Message, state: FSMContext):
     await state.update_data(stock_device_id=message.text)
-    await message.answer(
-        text="<b>Выберите имя прибора</b>",
+    mes_des = MessageDescription("stock_device_id_from_lamp")
+    await message.reply(
+        text=mes_des.description(),
         reply_markup=bot_api_db.bot_inline_kb(Marker.REPLACEMENT_LAMP),
     )
 
@@ -53,10 +54,11 @@ async def device_name_from_lamp(
     await callback.answer()
     data = await state.get_data()
     data["device_name"] = callback_data.fil_device
+    mes_des = MessageDescription("device_name_from_lamp")
 
     if callback.message:
         if bot_api_db.is_availability_device_from_stockpile(data):
-            await callback.message.answer(text="<b>Введите числовой ресурс лампы</b>")
+            await callback.message.answer(text=mes_des.description())
             await state.set_data(data)
             await state.set_state(ReplacementLamp.max_lamp_hours)
 
@@ -72,13 +74,16 @@ async def device_name_from_lamp(
 async def max_lamp_hours(message: Message, state: FSMContext):
     await state.update_data(max_lamp_hours=message.text)
     data = await state.get_data()
+    mes_des = MessageDescription("max_lamp_hours")
 
     try:
         message_result = bot_api_db.bot_replacement_lamp(data)
-        await message.answer(text=f"<b>{message_result}</b>", reply_markup=kb_start)
+        mes_des.message_data = message_result
+        await message.answer(text=mes_des.description(), reply_markup=kb_add)
 
     except BotHandlerException:
         logger.warning(BotHandlerException("Ошибка в замене лампы"))
+        await message.answer(text=mes_des.description(), reply_markup=kb_start)
 
     finally:
         await state.clear()
@@ -86,15 +91,17 @@ async def max_lamp_hours(message: Message, state: FSMContext):
 
 @lamp_router.message(F.text == "/check_lamp_hours")
 async def start_check_lamp_hours(message: Message, state: FSMContext):
-    await message.answer(text="<b>Старт проверки ресурса лампы. Введите id прибора</b>")
+    mes_des = MessageDescription(message.text)
+    await message.answer(text=mes_des.description())
     await state.set_state(SourceLampState.stock_device_id)
 
 
 @lamp_router.message(SourceLampState.stock_device_id)
 async def check_device_name(message: Message, state: FSMContext):
     await state.update_data(stock_device_id=message.text)
-    await message.answer(
-        text="<b>Выберите название прибора</b>",
+    mes_des = MessageDescription("check_device_name")
+    await message.reply(
+        text=mes_des.description(),
         reply_markup=bot_api_db.bot_inline_kb(Marker.DEVICE_FIL),
     )
 
@@ -106,12 +113,11 @@ async def check_device_FIL(
     await callback.answer()
     data = await state.get_data()
     data["device_name"] = callback_data.fil_device
+    mes_des = MessageDescription("check_device_FIL")
     if callback.message:
         if bot_api_db.is_availability_device_from_stockpile(data):
             await state.set_data(data)
-            await callback.message.answer(
-                text="<b>Введите текущее количество часов на приборе</b>"
-            )
+            await callback.message.answer(text=mes_des.description())
             await state.set_state(SourceLampState.current_lamp_hours)
 
         else:
@@ -127,5 +133,13 @@ async def check_lamp_hours(message: Message, state: FSMContext):
     await state.update_data(current_hours=message.text)
     data = await state.get_data()
     result = bot_api_db.bot_lamp_hour_calculate(data)
-    await message.answer(text=f"{result[0]}", reply_markup=kb_start)
+    mes_des = MessageDescription("check_lamp_hours")
+    mes_des.message_data = result[0]
+
+    if result[1]:
+        await message.answer(text=mes_des.description(), reply_markup=kb_start)
+
+    else:
+        await message.answer(text=mes_des.description(), reply_markup=kb_get)
+
     await state.clear()

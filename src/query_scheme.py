@@ -1,9 +1,9 @@
+from abc import abstractmethod
 import logging
 import json
 import os
 import sqlite3
-from abc import ABC, abstractmethod
-from typing import Callable, Dict, List, Tuple, Type, IO, Literal, TypeVar
+from typing import Callable, Dict, List, Protocol, Tuple, Type, IO, Literal, TypeVar
 
 from src.scheme_for_validation import (
     AbstractTable,
@@ -53,12 +53,12 @@ CREATE_TABLE_DEVICE = """CREATE TABLE IF NOT EXISTS device
 """
 
 CREATE_TABLE_STOCK_DEVICE = """CREATE TABLE IF NOT EXISTS stock_device
-    (id integer primary key AUTOINCREMENT,
-    stock_device_id integer,
+    (stock_device_id integer not null,
+    device_id integer not null,
     at_clean_date text not null,
     max_lamp_hours integer default 0,
     stock_device_status BOOLEAN DEFAULT 1,
-    device_id integer,
+    primary key (stock_device_id, device_id),
     foreign key(device_id) references device(device_id))
 """
 
@@ -151,13 +151,56 @@ class QueryException(Exception):
             return "QueryException вызвана для класса запросов"
 
 
-class AbstractTableQueryScheme(ABC):
-    @staticmethod
-    def request_row_factory(scheme: Type[AbstractTable]):
+class TableHandler:
+    @classmethod
+    def table_alias(cls, scheme: Type[AbstractTable]):
+        """вспомогательный метод
+        для преобразования названия строк таблицы для запроса"""
+
+        return ", ".join(scheme.table_alias())
+
+    @classmethod
+    def transform_where_data(cls, data: DataForQuery | List[DataForQuery]) -> str:
+        """метод для преобразования данных
+        в строку условия поиска - row1=value1 and row2=value2"""
+
+        if isinstance(data, DataForQuery):
+            return data.build
+
+        return " and ".join([item.build for item in data])
+
+    @classmethod
+    def gen_set_value(cls, scheme: Type[AbstractTable]):
+        """метод для генерации строковых значений
+        типа (?, ?, ?) в запросе"""
+
+        return ", ".join("?" * len(scheme.table_rows()))
+
+    @classmethod
+    def transform_set_data(cls, data: DataForQuery | List[DataForQuery]) -> str:
+        """метод преобразования данных в строку условия вставки данных типа
+        row1=val1, row2=val2"""
+        if isinstance(data, DataForQuery):
+            return data.build
+
+        return ", ".join([item.build for item in data])
+
+    @classmethod
+    def transform_rows(cls, lst_rows: List[TableRow]):
+        return ", ".join(lst_rows)
+
+    @classmethod
+    def table_rows(cls, scheme: Type[AbstractTable]):
+        return ", ".join(scheme.table_rows())
+
+    @classmethod
+    def request_row_factory(cls, scheme: Type[AbstractTable]):
         fabric = FabricRowFactory()
         fabric.choice_row_factory = scheme
         return fabric.choice_row_factory
 
+
+class AbstractTableQueryScheme(Protocol):
     @abstractmethod
     def query_get(
         self,
@@ -177,52 +220,11 @@ class AbstractTableQueryScheme(ABC):
     ) -> Tuple[str, Callable]:
         """строковый запрос для обновления данных в таблице"""
 
-    @staticmethod
-    def table_alias(scheme: Type[AbstractTable]):
-        """вспомогательный метод
-        для преобразования названия строк таблицы для запроса"""
-
-        return ", ".join(scheme.table_alias())
-
-    @staticmethod
-    def transform_where_data(data: DataForQuery | List[DataForQuery]) -> str:
-        """метод для преобразования данных
-        в строку условия поиска - row1=value1 and row2=value2"""
-
-        if isinstance(data, DataForQuery):
-            return data.build
-
-        return " and ".join([item.build for item in data])
-
-    @staticmethod
-    def gen_set_value(scheme: Type[AbstractTable]):
-        """метод для генерации строковых значений
-        типа (?, ?, ?) в запросе"""
-
-        return ", ".join("?" * len(scheme.table_rows()))
-
-    @staticmethod
-    def transform_set_data(data: DataForQuery | List[DataForQuery]) -> str:
-        """метод преобразования данных в строку условия вставки данных типа
-        row1=val1, row2=val2"""
-        if isinstance(data, DataForQuery):
-            return data.build
-
-        return ", ".join([item.build for item in data])
-
-    @staticmethod
-    def transform_rows(lst_rows: List[TableRow]):
-        return ", ".join(lst_rows)
-
-    @staticmethod
-    def table_rows(scheme: Type[AbstractTable]):
-        return ", ".join(scheme.table_rows())
-
 
 TableScheme = TypeVar("TableScheme", bound=AbstractTableQueryScheme, contravariant=True)
 
 
-class QuerySchemeForStockDevice(AbstractTableQueryScheme):
+class QuerySchemeForStockDevice:
     """Класс формирования запросов для таблицы приборов на складе"""
 
     def query_get_search_with_device(self, where_data) -> Tuple[str, Callable]:
@@ -232,10 +234,10 @@ FROM {table}
 LEFT JOIN device d ON d.device_id = sd.device_id
 WHERE {where_data}"""
         return query.format(
-            rows=self.table_alias(StockBrokenDeviceData),
+            rows=TableHandler.table_alias(StockBrokenDeviceData),
             table=StockBrokenDeviceData.table_name(),
-            where_data=self.transform_where_data(where_data),
-        ), self.request_row_factory(StockBrokenDeviceData)
+            where_data=TableHandler.transform_where_data(where_data),
+        ), TableHandler.request_row_factory(StockBrokenDeviceData)
 
     def query_get_search_with_device_company(self, where_data) -> Tuple[str, Callable]:
         """строковый запрос для получения данных о приборах со статусом"""
@@ -245,10 +247,10 @@ LEFT JOIN device d ON d.device_id = sd.device_id
 LEFT JOIN device_company dc ON dc.company_id = d.company_id
 WHERE {where_data}"""
         return query.format(
-            rows=self.table_alias(StockBrokenDeviceData),
+            rows=TableHandler.table_alias(StockBrokenDeviceData),
             table=StockBrokenDeviceData.table_name(),
-            where_data=self.transform_where_data(where_data),
-        ), self.request_row_factory(StockBrokenDeviceData)
+            where_data=TableHandler.transform_where_data(where_data),
+        ), TableHandler.request_row_factory(StockBrokenDeviceData)
 
     def query_get_search_with_device_type(self, where_data) -> Tuple[str, Callable]:
         """строковый запрос для получения данных о приборах со статусом"""
@@ -258,12 +260,12 @@ LEFT JOIN device d ON d.device_id = sd.device_id
 LEFT JOIN device_type dt ON dt.type_device_id = d.type_device_id
 WHERE {where_data}"""
         return query.format(
-            rows=self.table_alias(StockBrokenDeviceData),
+            rows=TableHandler.table_alias(StockBrokenDeviceData),
             table=StockBrokenDeviceData.table_name(),
-            where_data=self.transform_where_data(where_data),
-        ), self.request_row_factory(StockBrokenDeviceData)
+            where_data=TableHandler.transform_where_data(where_data),
+        ), TableHandler.request_row_factory(StockBrokenDeviceData)
 
-    def query_get(self, where_data=None):
+    def query_get(self, where_data=None) -> Tuple[str, Callable]:
         if where_data:
             query = """SELECT {rows}
 FROM {table}
@@ -273,10 +275,10 @@ LEFT JOIN device_type dt ON dt.type_device_id = d.type_device_id
 WHERE {where_data}
 """
             return query.format(
-                rows=self.table_alias(StockDeviceData),
+                rows=TableHandler.table_alias(StockDeviceData),
                 table=StockDeviceData.table_name(),
-                where_data=self.transform_where_data(where_data),
-            ), self.request_row_factory(StockDeviceData)
+                where_data=TableHandler.transform_where_data(where_data),
+            ), TableHandler.request_row_factory(StockDeviceData)
 
         else:
             query = """SELECT {rows}
@@ -286,31 +288,31 @@ LEFT JOIN device_company dc ON dc.company_id = d.company_id
 LEFT JOIN device_type dt ON dt.type_device_id = d.type_device_id
 """
             return query.format(
-                rows=self.table_alias(StockDeviceData),
+                rows=TableHandler.table_alias(StockDeviceData),
                 table=StockDeviceData.table_name(),
-            ), self.request_row_factory(StockDeviceData)
+            ), TableHandler.request_row_factory(StockDeviceData)
 
-    def query_set(self):
-        query = "INSERT INTO {table} ({rows}) VALUES ({set_values})"
+    def query_set(self) -> Tuple[str, Callable]:
+        query = "INSERT OR IGNORE INTO {table} ({rows}) VALUES ({set_values})"
         return query.format(
             table=StockDeviceTable.table_name(),
-            rows=self.table_rows(StockDeviceTable),
-            set_values=self.gen_set_value(StockDeviceTable),
-        ), self.request_row_factory(StockDeviceTable)
+            rows=TableHandler.table_rows(StockDeviceTable),
+            set_values=TableHandler.gen_set_value(StockDeviceTable),
+        ), TableHandler.request_row_factory(StockDeviceTable)
 
-    def query_update(self, where_data, set_data):
+    def query_update(self, where_data, set_data) -> Tuple[str, Callable]:
         query = "UPDATE {table} SET {set_data} WHERE {where_data}"
         return query.format(
             table=StockDeviceTable.table_name(),
-            set_data=self.transform_set_data(set_data),
-            where_data=self.transform_where_data(where_data),
-        ), self.request_row_factory(StockDeviceTable)
+            set_data=TableHandler.transform_set_data(set_data),
+            where_data=TableHandler.transform_where_data(where_data),
+        ), TableHandler.request_row_factory(StockDeviceTable)
 
 
-class QuerySchemeForDevice(AbstractTableQueryScheme):
+class QuerySchemeForDevice:
     """Класс формирования запросов для таблицы приборов"""
 
-    def query_get(self, where_data=None):
+    def query_get(self, where_data=None) -> Tuple[str, Callable]:
         if where_data:
             query = """SELECT {rows}
 FROM {table}
@@ -319,10 +321,10 @@ LEFT JOIN device_type dt ON dt.type_device_id = d.type_device_id
 WHERE {where_data}
 """
             return query.format(
-                rows=self.table_alias(OutputDeviceTable),
+                rows=TableHandler.table_alias(OutputDeviceTable),
                 table=OutputDeviceTable.table_name(),
-                where_data=self.transform_where_data(where_data),
-            ), self.request_row_factory(OutputDeviceTable)
+                where_data=TableHandler.transform_where_data(where_data),
+            ), TableHandler.request_row_factory(OutputDeviceTable)
 
         else:
             query = """SELECT {rows}
@@ -331,100 +333,100 @@ LEFT JOIN device_company dc ON dc.company_id = d.company_id
 LEFT JOIN device_type dt ON dt.type_device_id = d.type_device_id
 """
             return query.format(
-                rows=self.table_rows(OutputDeviceTable),
+                rows=TableHandler.table_rows(OutputDeviceTable),
                 table=DeviceTable.table_name(),
-            ), self.request_row_factory(OutputDeviceTable)
+            ), TableHandler.request_row_factory(OutputDeviceTable)
 
-    def query_set(self):
+    def query_set(self) -> Tuple[str, Callable]:
         query = "INSERT INTO {table} ({rows}) VALUES ({set_values})"
         return query.format(
             table=DeviceTable.table_name(),
-            rows=self.table_rows(DeviceTable),
-            set_values=self.gen_set_value(DeviceTable),
-        ), self.request_row_factory(DeviceTable)
+            rows=TableHandler.table_rows(DeviceTable),
+            set_values=TableHandler.gen_set_value(DeviceTable),
+        ), TableHandler.request_row_factory(DeviceTable)
 
-    def query_update(self, where_data, set_data):
+    def query_update(self, where_data, set_data) -> Tuple[str, Callable]:
         query = "UPDATE {table} SET {set_data} WHERE {where_data}"
         return query.format(
             table=DeviceTable.table_name(),
-            set_data=self.transform_set_data(set_data),
-            where_data=self.transform_where_data(where_data),
-        ), self.request_row_factory(DeviceTable)
+            set_data=TableHandler.transform_set_data(set_data),
+            where_data=TableHandler.transform_where_data(where_data),
+        ), TableHandler.request_row_factory(DeviceTable)
 
 
-class QuerySchemeForDeviceCompany(AbstractTableQueryScheme):
+class QuerySchemeForDeviceCompany:
     """Класс формирования запросов для таблицы компании производителя приборов"""
 
-    def query_get(self, where_data=None):
+    def query_get(self, where_data=None) -> Tuple[str, Callable]:
         if where_data:
             query = """SELECT {rows} 
 FROM {table}
 WHERE {where_data}
 """
             return query.format(
-                rows=self.table_rows(OutputDeviceCompanyTable),
+                rows=TableHandler.table_rows(OutputDeviceCompanyTable),
                 table=OutputDeviceCompanyTable.table_name(),
-                where_data=self.transform_where_data(where_data),
-            ), self.request_row_factory(OutputDeviceCompanyTable)
+                where_data=TableHandler.transform_where_data(where_data),
+            ), TableHandler.request_row_factory(OutputDeviceCompanyTable)
 
         else:
             query = "SELECT {rows} FROM {table}"
             return query.format(
-                rows=self.table_rows(OutputDeviceCompanyTable),
+                rows=TableHandler.table_rows(OutputDeviceCompanyTable),
                 table=OutputDeviceCompanyTable.table_name(),
-            ), self.request_row_factory(OutputDeviceCompanyTable)
+            ), TableHandler.request_row_factory(OutputDeviceCompanyTable)
 
     def query_set(self):
         query = "INSERT INTO {table} ({rows}) VALUES ({set_values})"
         return query.format(
             table=DeviceCompanyTable.table_name(),
-            rows=self.table_rows(DeviceCompanyTable),
-            set_values=self.gen_set_value(DeviceCompanyTable),
-        ), self.request_row_factory(DeviceCompanyTable)
+            rows=TableHandler.table_rows(DeviceCompanyTable),
+            set_values=TableHandler.gen_set_value(DeviceCompanyTable),
+        ), TableHandler.request_row_factory(DeviceCompanyTable)
 
-    def query_update(self, where_data, set_data):
+    def query_update(self, where_data, set_data) -> Tuple[str, Callable]:
         query = "UPDATE {table} SET {set_data} WHERE {where_data}"
         return query.format(
             table=DeviceCompanyTable.table_name(),
-            set_data=self.transform_set_data(set_data),
-            where_data=self.transform_where_data(where_data),
-        ), self.request_row_factory(DeviceCompanyTable)
+            set_data=TableHandler.transform_set_data(set_data),
+            where_data=TableHandler.transform_where_data(where_data),
+        ), TableHandler.request_row_factory(DeviceCompanyTable)
 
 
-class QuerySchemeForDeviceType(AbstractTableQueryScheme):
+class QuerySchemeForDeviceType:
     """Класс формирования запросов для таблицы типов приборов"""
 
-    def query_get(self, where_data=None):
+    def query_get(self, where_data=None) -> Tuple[str, Callable]:
         if where_data:
             query = """SELECT {rows} 
 FROM {table}
 WHERE {where_data}
 """
             return query.format(
-                rows=self.table_rows(OutputDeviceTypeTable),
+                rows=TableHandler.table_rows(OutputDeviceTypeTable),
                 table=OutputDeviceTypeTable.table_name(),
-                where_data=self.transform_where_data(where_data),
-            ), self.request_row_factory(OutputDeviceTypeTable)
+                where_data=TableHandler.transform_where_data(where_data),
+            ), TableHandler.request_row_factory(OutputDeviceTypeTable)
 
         else:
             query = "SELECT {rows} FROM {table}"
             return query.format(
-                rows=self.table_rows(OutputDeviceTypeTable),
+                rows=TableHandler.table_rows(OutputDeviceTypeTable),
                 table=DeviceTypeTable.table_name(),
-            ), self.request_row_factory(OutputDeviceTypeTable)
+            ), TableHandler.request_row_factory(OutputDeviceTypeTable)
 
-    def query_set(self):
+    def query_set(self) -> Tuple[str, Callable]:
         query = "INSERT INTO {table} ({rows}) VALUES ({set_values})"
         return query.format(
             table=DeviceTypeTable.table_name(),
-            rows=self.table_rows(DeviceTypeTable),
-            set_values=self.gen_set_value(DeviceTypeTable),
-        ), self.request_row_factory(DeviceTypeTable)
+            rows=TableHandler.table_rows(DeviceTypeTable),
+            set_values=TableHandler.gen_set_value(DeviceTypeTable),
+        ), TableHandler.request_row_factory(DeviceTypeTable)
 
-    def query_update(self, where_data, set_data):
+    def query_update(self, where_data, set_data) -> Tuple[str, Callable]:
         query = "UPDATE {table} SET {set_data} WHERE {where_data}"
         return query.format(
             table=DeviceTypeTable.table_name(),
-            set_data=self.transform_set_data(set_data),
-            where_data=self.transform_where_data(where_data),
-        ), self.request_row_factory(DeviceTypeTable)
+            set_data=TableHandler.transform_set_data(set_data),
+            where_data=TableHandler.transform_where_data(where_data),
+        ), TableHandler.request_row_factory(DeviceTypeTable)

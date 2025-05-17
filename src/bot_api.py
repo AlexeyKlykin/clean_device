@@ -249,7 +249,7 @@ class APIBotDb(Generic[Table, TableScheme]):
             row_where = MessageInput(
                 {
                     ("sd", "at_clean_date"): where_data["at_clean_date"],
-                    ("sd", "stock_device_status"): "0",
+                    ("sd", "stock_device_status"): "1",
                 }
             )
             stock_devices = api.database_get_search_by_row(row_where)
@@ -265,7 +265,7 @@ class APIBotDb(Generic[Table, TableScheme]):
             row_where = MessageInput(
                 {
                     ("sd", "at_clean_date"): date,
-                    ("sd", "stock_device_status"): "0",
+                    ("sd", "stock_device_status"): "1",
                 }
             )
             stock_devices = api.database_get_search_by_row(extra_where_data=row_where)

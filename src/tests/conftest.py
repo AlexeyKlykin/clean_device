@@ -1,10 +1,12 @@
 from pytest import fixture
+from src.data_handler import DatabaseQueryHandler
 from src.database_interface import DataBaseInterface
 from src.query_scheme import (
     CREATE_TABLE_DEVICE,
     CREATE_TABLE_DEVICE_COMPANY,
     CREATE_TABLE_DEVICE_TYPE,
     CREATE_TABLE_STOCK_DEVICE,
+    QuerySchemeForStockDevice,
 )
 
 table_list = ["device", "device_type", "device_company", "stock_device"]
@@ -30,3 +32,11 @@ def db_connect():
         yield conn
 
         conn.clean_table(table_list=table_list)
+
+
+@fixture
+def db_query_handler():
+    dqh = DatabaseQueryHandler(
+        db_name="clean_device_test.db", query_handler=QuerySchemeForStockDevice()
+    )
+    yield dqh
