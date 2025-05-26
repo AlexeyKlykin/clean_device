@@ -68,7 +68,7 @@ class StockDeviceTable(AbstractTable):
     max_lamp_hours: Annotated[
         int,
         Field(
-            lt=6000,
+            lt=10000,
             ge=0,
             description="Количество часов работы лампы",
             alias="sd.max_lamp_hours",
@@ -98,7 +98,7 @@ class StockDeviceTableStatus(AbstractTable):
     max_lamp_hours: Annotated[
         int,
         Field(
-            lt=6000,
+            lt=10000,
             ge=0,
             description="Количество часов работы лампы",
             alias="sd.max_lamp_hours",
@@ -129,7 +129,7 @@ class StockDeviceData(AbstractTable):
     max_lamp_hours: Annotated[
         int,
         Field(
-            lt=6000,
+            lt=10000,
             ge=0,
             description="Количество часов работы лампы",
             alias="sd.max_lamp_hours",

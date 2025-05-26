@@ -16,4 +16,7 @@ INSERT INTO device (device_name,company_id,type_device_id) VALUES
 	 ('Aqua perl pro',2,4),
 	 ('Quadra 800 frame profile',2,6),
 	 ('Fine art 1700 lh ispot',2,7),
-	 ('Bumblebee',2,8);
+	 ('Bumblebee',2,8),
+	 ('Tambora batten round',1,10),
+	 ('Profile 800',2,2),
+	 ('Aqua Beam 400ll',2,8);

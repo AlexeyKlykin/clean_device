@@ -43,4 +43,5 @@ INSERT INTO device_type (type_title,type_description,lamp_type) VALUES
 	 ('Profile','None','LED'),
 	 ('Spotlight','Пушки','LED'),
 	 ('Beam-fil','None','FIL'),
-	 ('Hybrid fil','None','FIL');
+	 ('Hybrid fil','None','FIL'),
+	 ('Led bar','None, палки.','LED');
